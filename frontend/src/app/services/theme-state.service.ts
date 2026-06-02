@@ -1,6 +1,6 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { Theme, SavePhase } from '../models/theme.model';
+import { Theme, SavePhase, EmailEventType, EmailBody } from '../models/theme.model';
 import { ThemeApiService } from './theme-api.service';
 
 const DEFAULT_THEME: Theme = {
@@ -32,7 +32,15 @@ const DEFAULT_THEME: Theme = {
   logo_top_text: null,
   logo_bottom_text: null,
   privacy_pdf_url: '/static/aviso_privacidad.pdf',
-  is_active: true
+  is_active: true,
+  allow_self_registration: false,
+  require_email_verification: false,
+  show_social_google: false,
+  show_social_microsoft: false,
+  show_social_gov_id: false,
+  email_footer_text: null,
+  email_template_type: 'integrated' as const,
+  email_bodies: {},
 };
 
 @Injectable({ providedIn: 'root' })
@@ -112,7 +120,24 @@ export class ThemeStateService {
   }
 
   updateField<K extends keyof Theme>(key: K, value: Theme[K]): void {
-    this._theme.update((t: Theme) => ({ ...t, [key]: value }));
+    this._theme.update((t: Theme) => {
+      const next = { ...t, [key]: value };
+      // Coerce: require_email_verification must be false when allow_self_registration is off
+      if (key === 'allow_self_registration' && !value) {
+        next.require_email_verification = false;
+      }
+      return next;
+    });
+    this._isDirty.set(true);
+    this._savePhase.set('idle');
+    this._deployError.set(null);
+  }
+
+  updateEmailBody(eventType: EmailEventType, body: EmailBody): void {
+    this._theme.update((t: Theme) => ({
+      ...t,
+      email_bodies: { ...(t.email_bodies ?? {}), [eventType]: body },
+    }));
     this._isDirty.set(true);
     this._savePhase.set('idle');
     this._deployError.set(null);

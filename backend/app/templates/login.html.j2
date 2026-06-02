@@ -157,9 +157,10 @@ body {
 }
 
 /* ── WRAPPER del executor (crece para llenar espacio disponible) ── */
+/* FIX P1: min-height fijo para evitar colapso cuando aparece el spinner */
 #cs-executor-wrap {
     flex: 1 1 0;
-    min-height: 0;
+    min-height: 220px;          /* P1: suficiente para form+btn+links */
     overflow: hidden;
     width: 100%;
     display: flex;
@@ -168,16 +169,18 @@ body {
     transform: translateZ(0);
     isolation: isolate;
     contain: layout style;
+    position: relative;         /* P1: contexto para spinner absolute */
 }
 
 /* ── ak-flow-executor: bloque puro, sin layout Patternfly ── */
+/* FIX P2: CSS vars para neutralizar bordes del card PF antes de que JS inyecte */
 ak-flow-executor {
     display: block !important;
-    position: static !important;
+    position: relative !important;  /* P1: contexto para spinner */
     inset: unset !important;
     width: 100% !important;
     max-width: 100% !important;
-    min-height: 0 !important;
+    min-height: 200px !important;   /* P1: evita colapso durante transición */
     height: auto !important;
     background: transparent !important;
     background-color: transparent !important;
@@ -199,7 +202,19 @@ ak-flow-executor {
     --pf-global--primary-color--100: var(--cs-btn);
     --pf-global--primary-color--200: var(--cs-btn-hover);
     --pf-global--link--Color: var(--cs-btn);
+    /* FIX P2: neutralizar borde y sombra del card PatternFly antes del JS */
+    --pf-c-card--BackgroundColor: transparent !important;
+    --pf-c-card--BoxShadow: none !important;
+    --pf-c-login__main--BoxShadow: none !important;
+    --pf-c-login__main--BackgroundColor: transparent !important;
 }
+
+/* FIX P1: spinner absolute para no desplazar contenido */
+/* FIX P2: empty-state sin borde visible */
+.pf-c-spinner { position: absolute !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important; }
+.pf-c-bullseye, [class*="bullseye"] { position: absolute !important; inset: 0 !important; background: transparent !important; border: none !important; }
+.pf-c-empty-state, ak-empty-state { background: transparent !important; border: none !important; box-shadow: none !important; }
+ak-flow-executor[loading] { min-height: 200px !important; display: flex !important; align-items: center !important; justify-content: center !important; }
 
 /* ── PANEL LOGOS (MITAD OPUESTA DEL CARD) ────────────── */
 #cs-logos-col {
@@ -610,6 +625,18 @@ new MutationObserver(function(ms){
             .pf-c-button.pf-m-primary:focus, button[type="submit"]:focus { box-shadow: 0 0 0 3px ${primary}40 !important; outline: none !important; }
             a { color: ${primary} !important; }
             .pf-c-form__label-text { color: rgba(0,0,0,0.7) !important; font-size: 0.85rem !important; }
+
+            /* FIX P1 — Spinner absolute para no causar reflow */
+            .pf-c-spinner { position: absolute !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important; }
+            .pf-c-bullseye, [class*="bullseye"] { position: absolute !important; inset: 0 !important; background: transparent !important; border: none !important; box-shadow: none !important; }
+            :host { position: relative !important; }
+
+            /* FIX P1 — Cuerpo del stage mantiene altura mínima para no colapsar */
+            .pf-c-login__main-body, [class*="main-body"] { min-height: 160px !important; position: relative !important; }
+
+            /* FIX P2 — Eliminar borde visible del card PF durante estado de carga */
+            .pf-c-empty-state, .pf-c-empty-state__content, ak-empty-state { background: transparent !important; border: none !important; box-shadow: none !important; }
+            .pf-c-card, [class*="c-card"] { border: none !important; box-shadow: none !important; background: transparent !important; }
         `;
         const _done = new WeakSet();
 

@@ -1,6 +1,20 @@
 export type AlignValue = 'left' | 'center' | 'right';
 export type BgType = 'gradient' | 'color' | 'image';
 export type SavePhase = 'idle' | 'saving' | 'deploying' | 'done' | 'deploy_error';
+export type EmailTemplateType = 'integrated' | 'custom_per_event';
+export type EmailEventType =
+  | 'password_reset'
+  | 'new_account'
+  | 'account_lockout'
+  | 'email_verification'
+  | 'security_change';
+
+export interface EmailBody {
+  subject: string;
+  body_html: string;
+}
+
+export type EmailBodies = Partial<Record<EmailEventType, EmailBody>>;
 
 export interface Theme {
   id?: string;
@@ -33,6 +47,43 @@ export interface Theme {
   logo_bottom_text: string | null;
   privacy_pdf_url: string | null;
   is_active: boolean;
+  // Access & notifications
+  allow_self_registration: boolean;
+  require_email_verification: boolean;
+  show_social_google: boolean;
+  show_social_microsoft: boolean;
+  show_social_gov_id: boolean;
+  email_footer_text: string | null;
+  email_template_type: EmailTemplateType;
+  email_bodies?: EmailBodies;
   created_at?: string;
   updated_at?: string;
+}
+
+export const EMAIL_EVENT_TYPES: EmailEventType[] = [
+  'password_reset',
+  'new_account',
+  'account_lockout',
+  'email_verification',
+  'security_change',
+];
+
+export const EMAIL_EVENT_LABELS: Record<EmailEventType, string> = {
+  password_reset: 'Restablecer contraseña',
+  new_account: 'Nueva cuenta',
+  account_lockout: 'Bloqueo de cuenta',
+  email_verification: 'Verificación de correo',
+  security_change: 'Cambio de seguridad',
+};
+
+export const EMPTY_EMAIL_BODY: EmailBody = { subject: '', body_html: '' };
+
+// ── Type guards ──────────────────────────────────────────────────────────
+
+export function isSocialEnabled(theme: Theme): boolean {
+  return theme.show_social_google || theme.show_social_microsoft || theme.show_social_gov_id;
+}
+
+export function requiresEmailFlow(theme: Theme): boolean {
+  return theme.allow_self_registration && theme.require_email_verification;
 }

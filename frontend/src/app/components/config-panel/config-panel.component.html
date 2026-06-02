@@ -25,6 +25,12 @@
             class="py-3 px-4 text-sm font-medium text-gray-700 hover:text-gray-900 whitespace-nowrap transition-colors">
       Privacidad
     </button>
+    <button (click)="setTab('notifications')"
+            [class.border-b-2]="activeTab() === 'notifications'"
+            [class.border-blue-500]="activeTab() === 'notifications'"
+            class="py-3 px-4 text-sm font-medium text-gray-700 hover:text-gray-900 whitespace-nowrap transition-colors">
+      Notificaciones
+    </button>
   </div>
 
   <!-- Scrollable Content -->
@@ -281,6 +287,183 @@
           <input #bgImgInput type="file" accept="image/*" hidden
                  (change)="handleFileChange('bg_image_base64', $event)" />
         </div>
+      </div>
+    }
+
+    <!-- Notifications Tab -->
+    @if (activeTab() === 'notifications') {
+      <div class="space-y-8">
+
+        <!-- Access & Security -->
+        <section>
+          <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Accesos y Seguridad</h3>
+          <div class="space-y-4">
+
+            <!-- allow_self_registration -->
+            <label class="flex items-start gap-3 cursor-pointer">
+              <div class="relative mt-0.5 shrink-0">
+                <input type="checkbox" class="sr-only"
+                       [checked]="theme.allow_self_registration"
+                       (change)="onField('allow_self_registration', $any($event.target).checked)" />
+                <div class="w-10 h-5 rounded-full transition-colors"
+                     [style.backgroundColor]="theme.allow_self_registration ? '#4272A5' : '#d1d5db'"></div>
+                <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform"
+                     [style.transform]="theme.allow_self_registration ? 'translateX(20px)' : 'translateX(0)'"></div>
+              </div>
+              <div>
+                <p class="text-sm font-medium text-gray-800">Permitir auto-registro</p>
+                <p class="text-xs text-gray-500">Muestra el enlace ¿No tienes cuenta? en el portal</p>
+              </div>
+            </label>
+
+            <!-- require_email_verification -->
+            <label class="flex items-start gap-3"
+                   [class.opacity-40]="!theme.allow_self_registration"
+                   [class.cursor-not-allowed]="!theme.allow_self_registration"
+                   [class.cursor-pointer]="theme.allow_self_registration">
+              <div class="relative mt-0.5 shrink-0">
+                <input type="checkbox" class="sr-only"
+                       [checked]="theme.require_email_verification"
+                       [disabled]="!theme.allow_self_registration"
+                       (change)="onField('require_email_verification', $any($event.target).checked)" />
+                <div class="w-10 h-5 rounded-full transition-colors"
+                     [style.backgroundColor]="theme.require_email_verification ? '#4272A5' : '#d1d5db'"></div>
+                <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform"
+                     [style.transform]="theme.require_email_verification ? 'translateX(20px)' : 'translateX(0)'"></div>
+              </div>
+              <div>
+                <p class="text-sm font-medium text-gray-800">Requerir verificación por correo</p>
+                <p class="text-xs text-gray-500">Disponible solo con auto-registro activo</p>
+              </div>
+            </label>
+          </div>
+
+          <!-- Social providers -->
+          <div class="mt-5">
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Proveedores sociales</p>
+            <div class="space-y-3">
+              @for (provider of [
+                { key: 'show_social_google', label: 'Google' },
+                { key: 'show_social_microsoft', label: 'Microsoft / Azure AD' },
+                { key: 'show_social_gov_id', label: 'ID Institucional' }
+              ]; track provider.key) {
+                <label class="flex items-center gap-3 cursor-pointer">
+                  <div class="relative shrink-0">
+                    <input type="checkbox" class="sr-only"
+                           [checked]="$any(theme)[provider.key]"
+                           (change)="onField($any(provider.key), $any($event.target).checked)" />
+                    <div class="w-10 h-5 rounded-full transition-colors"
+                         [style.backgroundColor]="$any(theme)[provider.key] ? '#4272A5' : '#d1d5db'"></div>
+                    <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform"
+                         [style.transform]="$any(theme)[provider.key] ? 'translateX(20px)' : 'translateX(0)'"></div>
+                  </div>
+                  <span class="text-sm font-medium text-gray-800">{{ provider.label }}</span>
+                </label>
+              }
+            </div>
+          </div>
+        </section>
+
+        <!-- Email Notifications -->
+        <section>
+          <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Notificaciones por Correo</h3>
+
+          <div class="space-y-4">
+            <!-- email_template_type toggle -->
+            <label class="flex items-start gap-3 cursor-pointer">
+              <div class="relative mt-0.5 shrink-0">
+                <input type="checkbox" class="sr-only"
+                       [checked]="theme.email_template_type === 'integrated'"
+                       (change)="onField('email_template_type', $any($event.target).checked ? 'integrated' : 'custom_per_event')" />
+                <div class="w-10 h-5 rounded-full transition-colors"
+                     [style.backgroundColor]="theme.email_template_type === 'integrated' ? '#4272A5' : '#d1d5db'"></div>
+                <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform"
+                     [style.transform]="theme.email_template_type === 'integrated' ? 'translateX(20px)' : 'translateX(0)'"></div>
+              </div>
+              <div>
+                <p class="text-sm font-medium text-gray-800">Heredar diseño del login en correos</p>
+                <p class="text-xs text-gray-500">Usa colores y logo del portal como base</p>
+              </div>
+            </label>
+
+            <!-- email_footer_text -->
+            <div>
+              <label class="block text-xs font-semibold text-gray-700 mb-1">
+                Pie de correo
+                <span class="ml-1 text-gray-400 font-normal">({{ (theme.email_footer_text || '').length }}/255)</span>
+              </label>
+              <textarea rows="2" maxlength="255"
+                        [value]="theme.email_footer_text || ''"
+                        (input)="onField('email_footer_text', $any($event.target).value || null)"
+                        placeholder="© 2026 CASMARTS Core. Todos los derechos reservados."
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500">
+              </textarea>
+            </div>
+          </div>
+
+          <!-- Event selector -->
+          <div class="mt-5">
+            <p class="text-xs font-semibold text-gray-700 mb-2">Evento</p>
+            <div class="flex flex-wrap gap-1.5">
+              @for (evt of EMAIL_EVENT_TYPES; track evt) {
+                <button type="button" (click)="activeEmailEvent.set(evt)"
+                        [class.border-blue-500]="activeEmailEvent() === evt"
+                        [class.bg-blue-50]="activeEmailEvent() === evt"
+                        [class.text-blue-700]="activeEmailEvent() === evt"
+                        [class.border-gray-300]="activeEmailEvent() !== evt"
+                        [class.bg-white]="activeEmailEvent() !== evt"
+                        [class.text-gray-600]="activeEmailEvent() !== evt"
+                        class="px-3 py-1.5 rounded-full text-xs font-medium border transition-colors">
+                  {{ EMAIL_EVENT_LABELS[evt] }}
+                </button>
+              }
+            </div>
+          </div>
+
+          <!-- Email body editor -->
+          <div class="mt-4 border border-gray-200 rounded-xl overflow-hidden">
+            <div class="px-4 py-3 border-b border-gray-200 bg-gray-50">
+              <label class="block text-xs font-semibold text-gray-700 mb-1">
+                Asunto
+                <span class="ml-1 text-gray-400 font-normal">({{ getEmailBody(activeEmailEvent()).subject.length }}/200)</span>
+              </label>
+              <input type="text" maxlength="200"
+                     [value]="getEmailBody(activeEmailEvent()).subject"
+                     (input)="onEmailSubjectChange($any($event.target).value)"
+                     [placeholder]="'Asunto: ' + EMAIL_EVENT_LABELS[activeEmailEvent()]"
+                     class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div class="px-4 py-3">
+              <label class="block text-xs font-semibold text-gray-700 mb-1">Cuerpo (HTML)</label>
+              <textarea rows="7"
+                        [value]="getEmailBody(activeEmailEvent()).body_html"
+                        (input)="onEmailBodyChange($any($event.target).value)"
+                        placeholder="<p>Hola {{ user.username }}, ...</p>"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono resize-y focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        style="min-height:140px;"
+                        spellcheck="false">
+              </textarea>
+            </div>
+            <!-- Variable guide -->
+            <div class="px-4 pb-4">
+              <p class="text-xs font-semibold text-gray-500 mb-2">Variables (clic para copiar)</p>
+              <div class="flex flex-wrap gap-1.5">
+                @for (v of VARIABLE_GUIDE; track v.var) {
+                  <button type="button" (click)="copyVar(v.var)" [title]="v.desc"
+                          [class.border-green-400]="copiedVar() === v.var"
+                          [class.bg-green-50]="copiedVar() === v.var"
+                          [class.text-green-700]="copiedVar() === v.var"
+                          [class.border-gray-300]="copiedVar() !== v.var"
+                          [class.bg-white]="copiedVar() !== v.var"
+                          [class.text-gray-600]="copiedVar() !== v.var"
+                          class="px-2 py-1 rounded text-xs font-mono border transition-colors">
+                    {{ copiedVar() === v.var ? '✓ copiado' : v.var }}
+                  </button>
+                }
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
     }
 

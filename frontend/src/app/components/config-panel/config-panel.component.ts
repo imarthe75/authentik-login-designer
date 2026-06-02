@@ -2,7 +2,10 @@ import { Component, Input, Output, EventEmitter, ViewChild, ElementRef, signal }
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
-import { Theme, SavePhase } from '../../models/theme.model';
+import {
+  Theme, SavePhase, EmailEventType, EmailBody,
+  EMAIL_EVENT_TYPES, EMAIL_EVENT_LABELS, EMPTY_EMAIL_BODY
+} from '../../models/theme.model';
 
 @Component({
   selector: 'app-config-panel',
@@ -21,6 +24,7 @@ export class ConfigPanelComponent {
   @Output() save = new EventEmitter<void>();
   @Output() retryDeploy = new EventEmitter<void>();
   @Output() changeApp = new EventEmitter<string | null>();
+  @Output() updateEmailBody = new EventEmitter<{ eventType: string; body: EmailBody }>();
 
   @ViewChild('logoTopInput') logoTopRef!: ElementRef<HTMLInputElement>;
   @ViewChild('logoBottomInput') logoBottomRef!: ElementRef<HTMLInputElement>;
@@ -40,10 +44,24 @@ export class ConfigPanelComponent {
     general: true,
     appearance: false,
     images: false,
-    privacy: false
+    privacy: false,
+    notifications: false
   };
 
   activeTab = signal('general');
+  activeEmailEvent = signal<EmailEventType>('password_reset');
+  copiedVar = signal<string | null>(null);
+
+  readonly EMAIL_EVENT_TYPES = EMAIL_EVENT_TYPES;
+  readonly EMAIL_EVENT_LABELS = EMAIL_EVENT_LABELS;
+
+  readonly VARIABLE_GUIDE = [
+    { var: '{{ user.username }}', desc: 'Nombre de usuario' },
+    { var: '{{ user.email }}', desc: 'Correo electrónico del usuario' },
+    { var: '{{ url }}', desc: 'Enlace de acción' },
+    { var: '{{ token }}', desc: 'Token de un solo uso' },
+    { var: '{{ tenant.name }}', desc: 'Nombre del tenant' },
+  ];
 
   get isBusy(): boolean {
     return this.savePhase === 'saving' || this.savePhase === 'deploying';
@@ -90,6 +108,26 @@ export class ConfigPanelComponent {
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) { alert('El tamaño máximo permitido para archivos es de 5MB.'); return; }
     this.uploadFile.emit({ key, file });
+  }
+
+  getEmailBody(eventType: EmailEventType): EmailBody {
+    return this.theme.email_bodies?.[eventType] ?? { ...EMPTY_EMAIL_BODY };
+  }
+
+  onEmailSubjectChange(value: string): void {
+    const evt = this.activeEmailEvent();
+    this.updateEmailBody.emit({ eventType: evt, body: { ...this.getEmailBody(evt), subject: value } });
+  }
+
+  onEmailBodyChange(value: string): void {
+    const evt = this.activeEmailEvent();
+    this.updateEmailBody.emit({ eventType: evt, body: { ...this.getEmailBody(evt), body_html: value } });
+  }
+
+  copyVar(v: string): void {
+    navigator.clipboard.writeText(v).catch(() => {});
+    this.copiedVar.set(v);
+    setTimeout(() => this.copiedVar.set(null), 1500);
   }
 
   handlePdfChange(event: Event): void {

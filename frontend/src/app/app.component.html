@@ -46,6 +46,7 @@
         (save)="handleSave()"
         (retryDeploy)="state.retryDeploy()"
         (changeApp)="handleChangeApp($event)"
+        (updateEmailBody)="state.updateEmailBody($event.eventType, $event.body)"
       />
     </section>
   </main>

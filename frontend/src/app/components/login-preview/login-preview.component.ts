@@ -2,7 +2,7 @@ import { Component, Input, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SafeHtmlPipe } from '../../pipes/safe-html.pipe';
 import { LucideAngularModule } from 'lucide-angular';
-import { Theme } from '../../models/theme.model';
+import { Theme, isSocialEnabled } from '../../models/theme.model';
 
 @Component({
   selector: 'app-login-preview',
@@ -62,5 +62,9 @@ export class LoginPreviewComponent {
     if (this.theme.layout_position === 'left') return 'flex-start';
     if (this.theme.layout_position === 'right') return 'flex-end';
     return 'center';
+  }
+
+  get hasSocial(): boolean {
+    return isSocialEnabled(this.theme);
   }
 }

@@ -1,0 +1,121 @@
+/**
+ * authentik-fixes.css — Correcciones de UX para plantillas CASMARTS en Authentik
+ *
+ * PROBLEMA 1: Reflow de altura al mostrar el spinner de carga
+ *   Síntoma: Al hacer submit, el spinner reemplaza el formulario dentro de
+ *   ak-flow-executor, el contenedor colapsa y el card pierde su centrado vertical.
+ *
+ * PROBLEMA 2: Borde flotante visible durante la carga
+ *   Síntoma: El div que envuelve los campos muestra un borde redondeado alrededor
+ *   de un área casi vacía mientras el spinner está activo.
+ *
+ * USO: Incluir en la configuración de tema de Authentik, o en login.html.j2
+ * como <style> adicional luego del bloque casmarts-branding.
+ */
+
+/* ═══════════════════════════════════════════════════════════════════
+   PROBLEMA 1 — Prevenir reflow al aparecer el spinner
+   ═══════════════════════════════════════════════════════════════════ */
+
+/**
+ * #cs-executor-wrap — wrapper del ak-flow-executor en la plantilla CASMARTS.
+ * Se le da altura mínima fija para que no colapse cuando el spinner
+ * reemplaza el contenido del formulario.
+ */
+#cs-executor-wrap {
+    min-height: 220px;          /* suficiente para formulario + botón + links */
+    position: relative;         /* contexto para el spinner absolute */
+}
+
+/**
+ * ak-flow-executor — componente web de Authentik que renderiza el stage actual.
+ * Mantiene altura mínima durante la transición de stages para evitar reflow.
+ */
+ak-flow-executor {
+    min-height: 200px !important;
+    position: relative !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PROBLEMA 2 — Eliminar borde del contenedor interno durante la carga
+   ═══════════════════════════════════════════════════════════════════ */
+
+/**
+ * .pf-c-card, .pf-c-panel — contenedores PatternFly que Authentik renderiza
+ * dentro del shadow DOM de ak-flow-executor. Tienen border: 1px solid #d2d2d2
+ * por defecto, visible como un recuadro vacío cuando el spinner está activo.
+ * Nota: estas reglas funcionan en el light DOM; la neutralización en shadow DOM
+ * ocurre vía el script csInjectShadow (ver casmarts-theme-engine en login.html.j2).
+ */
+ak-flow-executor {
+    --pf-c-card--BackgroundColor: transparent !important;
+    --pf-c-card--BoxShadow: none !important;
+    --pf-c-login__main--BoxShadow: none !important;
+    --pf-c-login__main--BackgroundColor: transparent !important;
+}
+
+/**
+ * .pf-c-login, .pf-c-login__main — contenedor principal del login en Authentik.
+ * Sin fondo ni sombra para que la transparencia del card CASMARTS sea visible.
+ */
+.pf-c-login,
+.pf-c-login__main {
+    background: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ESTADO DE CARGA (spinner visible)
+   ═══════════════════════════════════════════════════════════════════ */
+
+/**
+ * ak-flow-executor[loading] — atributo presente en el HTML inicial
+ * mientras Authentik no ha renderizado el primer stage.
+ * Se aplica min-height para que el placeholder no colapse.
+ */
+ak-flow-executor[loading] {
+    min-height: 200px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/**
+ * .pf-c-spinner — spinner nativo de PatternFly usado en ak-empty-state.
+ * Se posiciona absolute dentro del contenedor relative para que no desplace
+ * el resto del contenido (no ocupa flujo del documento).
+ * Nota: esta regla debe estar también en el shadow DOM (ver csInjectShadow).
+ */
+.pf-c-spinner {
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+}
+
+/**
+ * .pf-c-bullseye — wrapper del spinner que Authentik usa para centrarlo.
+ * Posicionado absolute para no afectar el flujo del documento.
+ */
+.pf-c-bullseye,
+[class*="bullseye"] {
+    position: absolute !important;
+    inset: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/**
+ * .pf-c-empty-state — estado vacío mostrado durante transiciones de stage.
+ * Sin fondo ni borde para que sea invisible (Problema 2).
+ */
+.pf-c-empty-state,
+.pf-c-empty-state__content,
+ak-empty-state {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
