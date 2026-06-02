@@ -1,0 +1,692 @@
+{% extends "base/skeleton.html" %}
+{% load i18n %}
+{% load static %}
+{% load authentik_core %}
+
+{% block head_before %}
+{{ block.super }}
+<link rel="prefetch" href="{{ flow_background_url }}" />
+{% if flow.compatibility_mode and not inspector %}
+<script data-id="shady-dom">
+    "use strict";
+    window.ShadyDOM = window.ShadyDOM || {}
+    window.ShadyDOM.force = true
+</script>
+{% endif %}
+{% include "base/header_js.html" %}
+<script data-id="flow-config">
+    "use strict";
+    window.authentik.flow = { "layout": "{{ flow.layout }}" };
+</script>
+<link rel="stylesheet" type="text/css" href="{% versioned_script 'dist/styles/static-%v.css' %}" />
+<style data-id="casmarts-branding">
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+/* ── RESET NATIVO AUTHENTIK ─────────────────────────── */
+html {
+    height: 100%;
+    background: transparent !important;
+}
+body {
+    margin: 0; padding: 0;
+    height: 100vh; width: 100vw;
+    overflow: hidden !important;
+    background: transparent !important;
+    background-image: none !important;
+    display: flex;
+    align-items: stretch;
+}
+:root {
+    --ak-global--background-image: none !important;
+    --cs-btn:        [[ theme.primary_color ]];
+    --cs-btn-hover:  [[ theme.hover_color ]];
+    --cs-panel-bg:   [[ theme.panel_bg_color ]];
+    --cs-card-bg:    rgba([[ theme.card_bg_color | hex_to_rgb ]], [[ theme.form_opacity ]]);
+    --cs-font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* ── FONDO COMPLETO ─────────────────────────────────── */
+#cs-bg {
+    position: fixed; inset: 0; z-index: 0;
+    background-size: cover; background-position: center;
+    [% if theme.bg_type == 'color' and theme.bg_flat_color %]
+    background-color: [[ theme.bg_flat_color ]];
+    background-image: none;
+    [% elif theme.bg_type == 'image' and theme.bg_image_base64 %]
+    background-image: url('[[ bg_image_url ]]');
+    [% else %]
+    background: linear-gradient(135deg, [[ theme.bg_gradient_from ]] 0%, [[ theme.bg_gradient_to ]] 100%);
+    background-image: none;
+    [% endif %]
+    opacity: [[ theme.bg_opacity ]];
+}
+#cs-bg-overlay {
+    position: fixed; inset: 0; z-index: 1;
+    background: rgba(0,0,0,0.15); pointer-events: none;
+}
+
+/* ── TARJETA UNIFICADA (PANTALLA PRINCIPAL) ─────────────────── */
+#cs-screen {
+    display: flex;
+    align-items: stretch;
+    justify-content: flex-start;
+    font-family: var(--cs-font);
+    z-index: 2;
+
+    background: var(--cs-card-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1.5px solid rgba(255, 255, 255, 0.6);
+    border-radius: 24px;
+    box-shadow: 0 24px 64px rgba(0, 42, 76, 0.12), 0 8px 24px rgba(0, 42, 76, 0.06);
+    overflow: hidden;
+
+    width: 820px;
+    max-width: 90vw;
+    height: 70vh;
+    min-height: 560px;
+    max-height: 620px;
+    transition: all 0.3s ease;
+
+    position: absolute !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+}
+
+/* Dirección y posicionamiento horizontal del card unificado */
+#cs-screen.cs-left {
+    flex-direction: row;
+    left: 6vw !important;
+}
+#cs-screen.cs-right {
+    flex-direction: row-reverse;
+    left: auto !important;
+    right: 6vw !important;
+}
+#cs-screen.cs-center {
+    flex-direction: row;
+    justify-content: center;
+    width: 820px;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+}
+
+/* ── PANEL FORMULARIO (MITAD DEL CARD) ──────────────── */
+#cs-form-col {
+    width: 50%;
+    min-width: 325px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 24px 28px;
+    overflow: hidden;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-radius: 0;
+    box-shadow: none;
+    height: 100%;
+}
+
+/* ── TÍTULOS EN TARJETA FORM (siempre visibles) ─────── */
+#cs-form-title {
+    font-weight: 800; font-size: 1.8rem; line-height: 1.2;
+    color: #111 !important;
+    text-align: [[ theme.name_align ]];
+    margin-bottom: 4px;
+    width: 100%;
+    position: relative;
+    z-index: 100;
+    flex-shrink: 0;
+    display: block !important;
+    visibility: visible !important;
+    min-height: 2rem;
+}
+#cs-form-subtitle {
+    font-size: 0.9rem; color: #555 !important;
+    text-align: [[ theme.subtitle_align ]];
+    margin-bottom: 16px;
+    width: 100%;
+    position: relative;
+    z-index: 100;
+    flex-shrink: 0;
+    display: block !important;
+    visibility: visible !important;
+}
+
+/* ── WRAPPER del executor (crece para llenar espacio disponible) ── */
+#cs-executor-wrap {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: hidden;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transform: translateZ(0);
+    isolation: isolate;
+    contain: layout style;
+}
+
+/* ── ak-flow-executor: bloque puro, sin layout Patternfly ── */
+ak-flow-executor {
+    display: block !important;
+    position: static !important;
+    inset: unset !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 0 !important;
+    height: auto !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    --pf-c-login--BackgroundColor: transparent;
+    --pf-c-login__main--MaxWidth: 100%;
+    --pf-c-login__main--BackgroundColor: transparent;
+    --pf-c-login__main--BoxShadow: none;
+    --pf-c-login__main-body--PaddingTop: 0;
+    --pf-c-login__main-body--PaddingBottom: 0;
+    --pf-c-card--BackgroundColor: transparent;
+    --pf-c-card--BoxShadow: none;
+    --pf-c-card--first-child--PaddingTop: 0;
+    --pf-c-card--child--PaddingRight: 0;
+    --pf-c-card--child--PaddingBottom: 0;
+    --pf-c-card--child--PaddingLeft: 0;
+    --pf-c-button--m-primary--BackgroundColor: var(--cs-btn);
+    --pf-c-button--m-primary--hover--BackgroundColor: var(--cs-btn-hover);
+    --pf-global--primary-color--100: var(--cs-btn);
+    --pf-global--primary-color--200: var(--cs-btn-hover);
+    --pf-global--link--Color: var(--cs-btn);
+}
+
+/* ── PANEL LOGOS (MITAD OPUESTA DEL CARD) ────────────── */
+#cs-logos-col {
+    flex: 1;
+    min-width: 280px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+    padding: 36px;
+    background: rgba([[ theme.panel_bg_color | hex_to_rgb ]], 0.35);
+    border-radius: 0;
+    box-shadow: none;
+    overflow: hidden;
+    height: 100%;
+
+    border-left: 1px solid rgba(255, 255, 255, 0.4);
+}
+#cs-screen.cs-right #cs-logos-col {
+    border-left: none;
+    border-right: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+/* ── RESPONSIVIDAD (MOBILE) ─────────────────────────── */
+@media (max-width: 768px) {
+    #cs-screen {
+        width: 100%;
+        max-width: 400px;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: 90vh !important;
+        flex-direction: column !important;
+        align-items: center;
+    }
+    #cs-form-col {
+        width: 100% !important;
+        height: auto !important;
+        max-height: 90vh !important;
+    }
+    #cs-logos-col {
+        display: none !important;
+    }
+}
+
+/* ── LOGOS ──────────────────────────────────────────── */
+.cs-logo { max-height: 110px; max-width: 340px; object-fit: contain; }
+.cs-logo-bot { max-height: 80px; max-width: 300px; object-fit: contain; }
+
+/* ── TEXTO DE LOGOS (panel derecho) ─────────────────── */
+.cs-logo-text {
+    font-weight: 800; font-size: 2rem; line-height: 1.2;
+    color: #fff; text-align: center;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.4);
+    white-space: pre-line;
+}
+.cs-logo-text-bot {
+    font-weight: 700; font-size: 1.5rem; line-height: 1.2;
+    color: rgba(255,255,255,0.92); text-align: center;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.3);
+}
+
+/* ── TÍTULO / SUBTÍTULO (panel logos) ──────────────── */
+#cs-title {
+    font-weight: 800; font-size: 2.2rem; line-height: 1.15;
+    color: #fff; text-align: [[ theme.name_align ]];
+    text-shadow: 0 2px 10px rgba(0,0,0,0.4);
+    margin-bottom: 6px;
+}
+#cs-subtitle {
+    font-size: 0.95rem; color: rgba(255,255,255,0.85);
+    text-align: [[ theme.subtitle_align ]];
+    text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+
+/* ── AVISO DE PRIVACIDAD ────────────────────────────── */
+#cs-privacy {
+    font-size: 0.78rem;
+    text-align: [[ theme.privacy_align ]];
+    cursor: pointer; text-decoration: underline;
+    margin-top: auto; padding-top: 10px; width: 100%; max-width: 400px;
+    display: [[ 'block' if theme.privacy_pdf_url else 'none' ]];
+    color: rgba(0,0,0,0.45);
+    flex-shrink: 0;
+}
+#cs-privacy:hover { color: var(--cs-btn); }
+
+/* ── MODAL PDF ──────────────────────────────────────── */
+#cs-pdf-modal {
+    display: none; position: fixed; inset: 0; z-index: 1000;
+    background: rgba(0,0,0,0.7); align-items: center; justify-content: center;
+}
+#cs-pdf-modal.open { display: flex; }
+#cs-pdf-box {
+    background: #fff; border-radius: 14px;
+    width: 80vw; height: 85vh;
+    display: flex; flex-direction: column;
+    overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+#cs-pdf-hdr {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px; background: var(--cs-btn); color: #fff;
+    font-weight: 700; font-size: 0.95rem;
+}
+#cs-pdf-hdr button { background: none; border: none; color: #fff; font-size: 1.4rem; cursor: pointer; }
+#cs-pdf-body { flex: 1; overflow: hidden; }
+</style>
+
+<!-- ═══ INTERCEPCIÓN TEMPRANA SHADOW DOM (Firefox / Edge / Opera) ═══════════════════
+     Este script corre DURANTE el parsing del head, ANTES que FlowInterface.js (module).
+     Intercepta customElements.define para inyectar CSS en el shadow DOM INMEDIATAMENTE
+     antes del primer render de LitElement — solución cross-browser garantizada.
+     ════════════════════════════════════════════════════════════════════════════════ -->
+<script data-id="casmarts-shadow-intercept">
+(function(){
+"use strict";
+var ECSS=[
+":host{position:static!important;display:block!important}",
+".pf-c-login{background:transparent!important;background-color:transparent!important;background-image:none!important;min-height:0!important;height:auto!important;display:block!important;position:static!important}",
+".pf-c-login__main,.pf-c-card,.pf-c-panel,.pf-c-panel__main,[class*='login__main'],[class*='c-card'],[class*='c-panel']{background:transparent!important;background-color:transparent!important;box-shadow:none!important;border:none!important;border-radius:0!important;max-width:100%!important;width:100%!important;margin:0!important;padding:0!important;position:static!important;transform:none!important}",
+".pf-c-login__main-header,[class*='main-header'],ak-brand,.pf-c-brand,h1,h2,.pf-c-title,[class*='__header'],[slot='description']{display:none!important;height:0!important;padding:0!important;margin:0!important;overflow:hidden!important}",
+".pf-c-login__footer,.pf-c-login__main-footer-band,[class*='login__footer'],[class*='footer-band'],.pf-c-login__main-footer-band-item,ak-locale-select,[class*='locale-select']{display:none!important;height:0!important;overflow:hidden!important}",
+".pf-c-login__main-body,[class*='main-body']{padding:0!important;background:transparent!important}",
+".pf-c-form-control,input:not([type=submit]):not([type=button]):not([type=checkbox]):not([type=radio]){border-radius:8px!important;border:1.5px solid rgba(0,0,0,0.15)!important;background:rgba(255,255,255,0.8)!important;box-shadow:none!important;max-width:100%!important}",
+".pf-c-button.pf-m-primary,button[type=submit]{background-color:[[ theme.primary_color ]]!important;border-color:[[ theme.primary_color ]]!important;border-radius:8px!important;box-shadow:none!important;width:100%!important}",
+".pf-c-login__main-footer,[class*='main-footer']{padding:0!important;margin-top:0.5rem!important;background:transparent!important}",
+"a{color:[[ theme.primary_color ]]!important}"
+].join('');
+
+function inject(root){
+    if(!root||!root.appendChild)return;
+    var ex=root.querySelector&&root.querySelector('#cs-intercept');
+    if(ex){ex.textContent=ECSS;return;}
+    var s=document.createElement('style');
+    s.id='cs-intercept';
+    s.textContent=ECSS;
+    root.appendChild(s);
+    new MutationObserver(function(ms){
+        ms.forEach(function(m){
+            m.addedNodes.forEach(function(n){
+                if(n.nodeType!==1)return;
+                if(n.shadowRoot)inject(n.shadowRoot);
+                if(n.querySelectorAll)n.querySelectorAll('*').forEach(function(e){if(e.shadowRoot)inject(e.shadowRoot);});
+            });
+        });
+    }).observe(root,{childList:true,subtree:true});
+}
+
+if(typeof customElements!=='undefined'){
+    var _def=customElements.define.bind(customElements);
+    customElements.define=function(name,ctor,opts){
+        if(name&&name.indexOf('ak-')===0&&ctor&&ctor.prototype){
+            var _cc=ctor.prototype.connectedCallback;
+            ctor.prototype.connectedCallback=function(){
+                var self=this;
+                if(self.shadowRoot)inject(self.shadowRoot);
+                var r=_cc?_cc.apply(self,arguments):undefined;
+                if(self.shadowRoot)inject(self.shadowRoot);
+                if(typeof Promise!=='undefined')Promise.resolve().then(function(){
+                    if(self.shadowRoot)inject(self.shadowRoot);
+                });
+                return r;
+            };
+        }
+        return _def(name,ctor,opts);
+    };
+}
+
+new MutationObserver(function(ms){
+    ms.forEach(function(m){
+        m.addedNodes.forEach(function(n){
+            if(n.nodeType!==1)return;
+            if(n.shadowRoot)inject(n.shadowRoot);
+            if(n.querySelectorAll)n.querySelectorAll('*').forEach(function(e){if(e.shadowRoot)inject(e.shadowRoot);});
+        });
+    });
+}).observe(document.documentElement,{childList:true,subtree:true});
+})();
+</script>
+{% endblock %}
+
+{% block head %}
+<script src="{% versioned_script 'dist/flow/FlowInterface-%v.js' %}" type="module"></script>
+{% endblock %}
+
+{% block body %}
+<div id="cs-bg"></div>
+<div id="cs-bg-overlay"></div>
+
+<div id="cs-screen" class="cs-[[ theme.layout_position ]]">
+
+    <!-- ── COLUMNA FORMULARIO ─────────────────────── -->
+    <div id="cs-form-col">
+        <div id="cs-form-title">[[ theme.system_name ]]</div>
+        <div id="cs-form-subtitle">[[ theme.system_subtitle ]]</div>
+
+        <ak-skip-to-content></ak-skip-to-content>
+        <ak-message-container></ak-message-container>
+        <div id="cs-executor-wrap">
+            <ak-flow-executor
+                slug="{{ flow.slug }}"
+                data-layout="{{ flow.layout|default:'stacked' }}"
+                loading
+            >
+                {% include "base/placeholder.html" %}
+            </ak-flow-executor>
+        </div>
+
+        [% if theme.privacy_pdf_url %]
+        <span id="cs-privacy" onclick="csPdfOpen()">Aviso de Privacidad</span>
+        [% else %]
+        <span id="cs-privacy" onclick="csPdfOpen()" style="display:none">Aviso de Privacidad</span>
+        [% endif %]
+    </div>
+
+    <!-- ── COLUMNA LOGOS ──────────────────────────── -->
+    <div id="cs-logos-col">
+        <!-- Logo superior: imagen o texto -->
+        <div id="cs-logo-top-wrap" style="[% if logo_top_url %]display:flex[% else %]display:none[% endif %]; align-items:center; justify-content:center;">
+            <img id="cs-logo-top" class="cs-logo"
+                 src="[[ logo_top_url if logo_top_url else '' ]]"
+                 alt="Logo principal"
+                 style="max-height:[% if theme.logos_height_pct %][[ (theme.logos_height_pct // 3) | int ]]vh[% else %]110px[% endif %]">
+        </div>
+        <div id="cs-logo-top-text-wrap" style="[% if not logo_top_url and theme.logo_top_text %]display:flex[% else %]display:none[% endif %]; align-items:center; justify-content:center;">
+            <div id="cs-logo-top-text" class="cs-logo-text">[[ theme.logo_top_text or '' ]]</div>
+        </div>
+
+        <!-- Logo inferior: imagen o texto -->
+        <div id="cs-logo-bot-wrap" style="[% if logo_bottom_url %]display:flex[% else %]display:none[% endif %]; align-items:center; justify-content:center;">
+            <img id="cs-logo-bot" class="cs-logo-bot"
+                 src="[[ logo_bottom_url if logo_bottom_url else '' ]]"
+                 alt="Logo secundario">
+        </div>
+        <div id="cs-logo-bot-text-wrap" style="[% if not logo_bottom_url and theme.logo_bottom_text %]display:flex[% else %]display:none[% endif %]; align-items:center; justify-content:center;">
+            <div id="cs-logo-bot-text" class="cs-logo-text-bot">[[ theme.logo_bottom_text or '' ]]</div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Modal PDF -->
+<div id="cs-pdf-modal">
+    <div id="cs-pdf-box">
+        <div id="cs-pdf-hdr">
+            <span>Aviso de Privacidad</span>
+            <button onclick="csPdfClose()">✕</button>
+        </div>
+        <div id="cs-pdf-body"></div>
+    </div>
+</div>
+
+<script data-id="casmarts-theme-engine">
+(function () {
+    const API_BASE  = '/lm';
+    const FLOW_SLUG = '{{ flow.slug }}';
+    const url       = new URL(window.location.href);
+    const clientId  = url.searchParams.get('client_id') || '';
+
+    function cssRgb(hex) {
+        const h = hex.replace('#','');
+        return `${parseInt(h.slice(0,2),16)}, ${parseInt(h.slice(2,4),16)}, ${parseInt(h.slice(4,6),16)}`;
+    }
+
+    function applyTheme(t) {
+        const root = document.documentElement;
+        root.style.setProperty('--cs-btn',       t.primary_color);
+        root.style.setProperty('--cs-btn-hover',  t.hover_color);
+        root.style.setProperty('--cs-panel-bg',   t.panel_bg_color);
+        root.style.setProperty('--cs-card-bg',
+            `rgba(${cssRgb(t.card_bg_color)}, ${t.form_opacity})`);
+
+        const bg = document.getElementById('cs-bg');
+        if (bg) {
+            if (t.bg_type === 'color' && t.bg_flat_color) {
+                bg.style.background = t.bg_flat_color;
+                bg.style.backgroundImage = 'none';
+            } else if (t.bg_type === 'image' && t.has_bg_image) {
+                const imgUrl = `${API_BASE}/api/v1/public/theme/${FLOW_SLUG}/image/bg_image${clientId ? '?app='+clientId : ''}`;
+                bg.style.backgroundImage = `url(${imgUrl})`;
+            } else {
+                bg.style.background = `linear-gradient(135deg, ${t.bg_gradient_from} 0%, ${t.bg_gradient_to} 100%)`;
+                bg.style.backgroundImage = '';
+            }
+            bg.style.opacity = t.bg_opacity;
+        }
+
+        const logosCol = document.getElementById('cs-logos-col');
+        if (logosCol) {
+            const rgb = cssRgb(t.panel_bg_color);
+            logosCol.style.background = `rgba(${rgb}, ${t.logos_opacity})`;
+            logosCol.style.height = '';
+            logosCol.style.maxHeight = '';
+            logosCol.style.alignSelf = '';
+        }
+
+        const formCol = document.getElementById('cs-form-col');
+        if (formCol) {
+            formCol.style.background = `rgba(${cssRgb(t.card_bg_color)}, ${t.form_opacity})`;
+            formCol.style.height = '';
+            formCol.style.maxHeight = '';
+        }
+
+        const screen = document.getElementById('cs-screen');
+        if (screen) {
+            screen.className = `cs-${t.layout_position}`;
+            const targetHeight = t.form_height_pct || t.logos_height_pct;
+            if (targetHeight) {
+                screen.style.height = `${targetHeight}vh`;
+                screen.style.maxHeight = `${targetHeight}vh`;
+            } else {
+                screen.style.height = '';
+                screen.style.maxHeight = '';
+            }
+        }
+
+        const topWrap      = document.getElementById('cs-logo-top-wrap');
+        const topImg       = document.getElementById('cs-logo-top');
+        const topTextWrap  = document.getElementById('cs-logo-top-text-wrap');
+        const topTextEl    = document.getElementById('cs-logo-top-text');
+        if (t.has_logo_top && topImg) {
+            topImg.src = `${API_BASE}/api/v1/public/theme/${FLOW_SLUG}/image/logo_top${clientId ? '?app='+clientId : ''}`;
+            if (topWrap) topWrap.style.display = 'flex';
+            if (topTextWrap) topTextWrap.style.display = 'none';
+        } else if (t.logo_top_text) {
+            if (topWrap) topWrap.style.display = 'none';
+            if (topTextWrap) topTextWrap.style.display = 'flex';
+            if (topTextEl) topTextEl.innerHTML = t.logo_top_text;
+        } else {
+            if (topWrap) topWrap.style.display = 'none';
+            if (topTextWrap) topTextWrap.style.display = 'none';
+        }
+
+        const botWrap      = document.getElementById('cs-logo-bot-wrap');
+        const botImg       = document.getElementById('cs-logo-bot');
+        const botTextWrap  = document.getElementById('cs-logo-bot-text-wrap');
+        const botTextEl    = document.getElementById('cs-logo-bot-text');
+        if (t.has_logo_bottom && botImg) {
+            botImg.src = `${API_BASE}/api/v1/public/theme/${FLOW_SLUG}/image/logo_bottom${clientId ? '?app='+clientId : ''}`;
+            if (botWrap) botWrap.style.display = 'flex';
+            if (botTextWrap) botTextWrap.style.display = 'none';
+        } else if (t.logo_bottom_text) {
+            if (botWrap) botWrap.style.display = 'none';
+            if (botTextWrap) botTextWrap.style.display = 'flex';
+            if (botTextEl) botTextEl.innerHTML = t.logo_bottom_text;
+        } else {
+            if (botWrap) botWrap.style.display = 'none';
+            if (botTextWrap) botTextWrap.style.display = 'none';
+        }
+
+        const priv = document.getElementById('cs-privacy');
+        if (priv) {
+            priv.style.display = t.privacy_pdf_url ? 'block' : 'none';
+            if (t.privacy_pdf_url) priv.dataset.url = t.privacy_pdf_url;
+        }
+
+        const fTitle = document.getElementById('cs-form-title');
+        if (fTitle) { fTitle.innerHTML = t.system_name; fTitle.style.textAlign = t.name_align; }
+        const fSub = document.getElementById('cs-form-subtitle');
+        if (fSub) { fSub.innerHTML = t.system_subtitle; fSub.style.textAlign = t.subtitle_align; }
+
+        csInjectShadow(t.primary_color, t.hover_color);
+    }
+
+    const cacheKey = `cs:${FLOW_SLUG}:${clientId}`;
+    try {
+        const cached = sessionStorage.getItem(cacheKey);
+        if (cached) applyTheme(JSON.parse(cached));
+    } catch(e) {}
+
+    fetch(`${API_BASE}/api/v1/public/theme/${FLOW_SLUG}${clientId ? '?app='+clientId : ''}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(t => {
+            if (!t) return;
+            try { sessionStorage.setItem(cacheKey, JSON.stringify(t)); } catch(e) {}
+            if (t.is_custom === false) {
+                const exec = document.querySelector('ak-flow-executor');
+                document.querySelectorAll('style[data-id="casmarts-branding"], #cs-bg, #cs-bg-overlay, #cs-screen').forEach(el => el.remove());
+                document.body.style.cssText = '';
+                document.documentElement.style.cssText = '';
+                if (exec) {
+                    document.body.appendChild(exec);
+                    exec.style.cssText = '';
+                    exec.classList.add('pf-c-login');
+                }
+                return;
+            }
+            applyTheme(t);
+        })
+        .catch(() => {});
+
+    function csInjectShadow(primary, hover) {
+        const CSS = `
+            .pf-c-login::before { display: none !important; }
+            :host { position: static !important; display: block !important; }
+            .pf-c-login { background: transparent !important; background-color: transparent !important; background-image: none !important; position: static !important; width: 100% !important; height: auto !important; min-height: 0 !important; padding: 0 !important; margin: 0 !important; transform: none !important; box-sizing: border-box !important; }
+            :host, .pf-c-login, .pf-c-login__main, .pf-c-login__main-body, .pf-c-login__main-header, .pf-c-card, .pf-c-panel, .pf-c-panel__main, [class*="login__main"], [class*="c-card"], [class*="c-panel"] { position: static !important; transform: none !important; width: 100% !important; max-width: 100% !important; box-shadow: none !important; background: transparent !important; background-color: transparent !important; background-image: none !important; border: none !important; border-radius: 0 !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; margin: 0 !important; padding: 0 !important; }
+            .pf-c-login__main-body, [class*="main-body"] { padding: 0 !important; }
+            .pf-c-login__main-header, [class*="main-header"], ak-brand, .pf-c-brand, h1, h2, .pf-c-title, [class*="__header"], [slot="description"] { display: none !important; height: 0 !important; padding: 0 !important; margin: 0 !important; overflow: hidden !important; }
+            .pf-c-login__footer, .pf-c-login__main-footer-band, [class*="login__footer"], [class*="footer-band"], .pf-c-login__main-footer-band-item { display: none !important; height: 0 !important; padding: 0 !important; margin: 0 !important; overflow: hidden !important; }
+            ak-locale-select, [class*="locale-select"], [class*="locale_select"], [id*="locale"] { display: none !important; }
+            .pf-c-form__group, [class*="form__group"] { margin-bottom: 0.65rem !important; }
+            .pf-c-form-control, input:not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]) { padding: 0.55rem 0.85rem !important; border-radius: 8px !important; border: 1.5px solid rgba(0,0,0,0.15) !important; background: rgba(255,255,255,0.8) !important; box-shadow: none !important; font-size: 0.9rem !important; transition: border-color 0.2s, box-shadow 0.2s !important; width: 100% !important; box-sizing: border-box !important; }
+            .pf-c-form-control:focus, input:not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus { border-color: ${primary} !important; box-shadow: 0 0 0 3px ${primary}33 !important; outline: none !important; }
+            .pf-c-login__main-footer, [class*="main-footer"] { padding: 0 !important; margin-top: 0.75rem !important; background: transparent !important; background-color: transparent !important; }
+            .pf-c-button.pf-m-primary, button[type="submit"] { background-color: ${primary} !important; border-color: ${primary} !important; border-radius: 8px !important; font-weight: 600 !important; padding: 0.6rem 1.2rem !important; width: 100% !important; box-shadow: none !important; text-shadow: none !important; }
+            .pf-c-button.pf-m-primary:hover, button[type="submit"]:hover { background-color: ${hover} !important; border-color: ${hover} !important; box-shadow: none !important; }
+            .pf-c-button.pf-m-primary:focus, button[type="submit"]:focus { box-shadow: 0 0 0 3px ${primary}40 !important; outline: none !important; }
+            a { color: ${primary} !important; }
+            .pf-c-form__label-text { color: rgba(0,0,0,0.7) !important; font-size: 0.85rem !important; }
+        `;
+        const _done = new WeakSet();
+
+        function processRoot(root) {
+            if (_done.has(root)) return;
+            _done.add(root);
+            const existing = root.querySelector('#cs-theme');
+            if (existing) {
+                existing.textContent = CSS;
+            } else {
+                const s = document.createElement('style');
+                s.id = 'cs-theme';
+                s.textContent = CSS;
+                root.appendChild(s);
+            }
+            root.querySelectorAll('*').forEach(el => {
+                if (el.shadowRoot) processRoot(el.shadowRoot);
+            });
+            new MutationObserver(mutations => {
+                mutations.forEach(m => m.addedNodes.forEach(n => {
+                    if (n.nodeType !== 1) return;
+                    if (n.shadowRoot) processRoot(n.shadowRoot);
+                    n.querySelectorAll('*').forEach(el => {
+                        if (el.shadowRoot) processRoot(el.shadowRoot);
+                    });
+                }));
+            }).observe(root, { childList: true, subtree: true });
+        }
+
+        function tryExec() {
+            const exec = document.querySelector('ak-flow-executor');
+            if (!exec || !exec.shadowRoot) return false;
+            processRoot(exec.shadowRoot);
+            return true;
+        }
+
+        if (!tryExec()) {
+            const obs = new MutationObserver((_, o) => { if (tryExec()) o.disconnect(); });
+            obs.observe(document.body, { childList: true, subtree: true });
+        }
+
+        let _p1 = 0;
+        const _t1 = setInterval(() => {
+            const exec = document.querySelector('ak-flow-executor');
+            if (exec && exec.shadowRoot) processRoot(exec.shadowRoot);
+            if (++_p1 >= 20) clearInterval(_t1);
+        }, 50);
+        let _p2 = 0;
+        const _t2 = setInterval(() => {
+            const exec = document.querySelector('ak-flow-executor');
+            if (exec && exec.shadowRoot) processRoot(exec.shadowRoot);
+            if (++_p2 >= 16) clearInterval(_t2);
+        }, 300);
+
+        if (typeof customElements !== 'undefined' && customElements.whenDefined) {
+            customElements.whenDefined('ak-flow-executor').then(() => tryExec()).catch(() => {});
+        }
+    }
+
+    csInjectShadow('[[ theme.primary_color ]]', '[[ theme.hover_color ]]');
+
+    window.csPdfOpen = function() {
+        const m = document.getElementById('cs-pdf-modal');
+        if (!m) return; m.classList.add('open');
+        const pdfUrl = document.getElementById('cs-privacy')?.dataset?.url;
+        const b = document.getElementById('cs-pdf-body');
+        b.innerHTML = pdfUrl
+            ? `<embed src="${pdfUrl}#toolbar=1" type="application/pdf" width="100%" height="100%">`
+            : '<div style="padding:2rem;color:#666">Sin documento.</div>';
+    };
+    window.csPdfClose = function() {
+        const m = document.getElementById('cs-pdf-modal');
+        if (m) m.classList.remove('open');
+        const b = document.getElementById('cs-pdf-body');
+        if (b) b.innerHTML = '';
+    };
+    document.addEventListener('keydown', e => { if (e.key==='Escape') window.csPdfClose(); });
+})();
+</script>
+{% endblock %}
