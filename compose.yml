@@ -1,0 +1,9 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: casmarts-login-designer-frontend
+    ports:
+      - "3090:80"
+    restart: always

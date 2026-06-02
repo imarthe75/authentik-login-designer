@@ -1,0 +1,32 @@
+# Dependencias
+node_modules/
+.pnp
+.pnp.js
+
+# Build / distribución
+dist/
+build/
+*.tar.gz
+*.zip
+
+# Entorno y secretos
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Cache
+.cache/
+.turbo/

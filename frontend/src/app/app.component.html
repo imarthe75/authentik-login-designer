@@ -1,0 +1,52 @@
+<div class="w-screen h-screen flex flex-col font-sans overflow-hidden bg-gray-100">
+  <!-- Header -->
+  <header class="h-16 shrink-0 bg-white border-b border-gray-200 px-6 flex items-center justify-between shadow-sm z-30">
+    <div class="flex items-center gap-3">
+      <div class="bg-[#4272A5] text-white p-2 rounded-lg font-black text-sm tracking-wider">CA</div>
+      <div>
+        <h1 class="font-extrabold text-base text-gray-800 leading-none">Authentik Login Designer</h1>
+        <span class="text-[10px] text-gray-400 font-semibold tracking-widest uppercase">CASMARTS SAAS INTERNAL</span>
+      </div>
+    </div>
+    @if (!loading()) {
+      <app-theme-selector
+        [themes]="themesList()"
+        [currentSlug]="state.theme().authentik_flow_slug"
+        (selectSlug)="handleSelectSlug($event)"
+        (createTheme)="handleCreateTheme($event)"
+      />
+    }
+  </header>
+
+  <!-- Main -->
+  <main class="flex-1 flex items-stretch overflow-hidden relative">
+    @if (state.error()) {
+      <div class="absolute top-4 left-6 z-40 max-w-sm bg-red-600 text-white rounded-xl shadow-2xl p-4 flex items-start gap-2.5 animate-slideIn">
+        <span class="text-xl">⚠️</span>
+        <div class="flex-1">
+          <h4 class="font-bold text-xs">Error de Servidor</h4>
+          <p class="text-[11px] opacity-90 mt-0.5">{{ state.error() }}</p>
+        </div>
+      </div>
+    }
+
+    <section class="flex-1 h-full relative bg-gray-800">
+      <app-login-preview [theme]="state.theme()" />
+    </section>
+
+    <section class="w-[380px] shrink-0 h-full">
+      <app-config-panel
+        [theme]="state.theme()"
+        [isDirty]="state.isDirty()"
+        [savePhase]="state.savePhase()"
+        [deployError]="state.deployError()"
+        [authentikApps]="authentikApps()"
+        (updateField)="state.updateField($event.key, $event.value)"
+        (uploadFile)="state.uploadFileField($event.key, $event.file)"
+        (save)="handleSave()"
+        (retryDeploy)="state.retryDeploy()"
+        (changeApp)="handleChangeApp($event)"
+      />
+    </section>
+  </main>
+</div>

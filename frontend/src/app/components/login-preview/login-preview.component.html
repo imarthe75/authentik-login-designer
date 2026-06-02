@@ -1,0 +1,107 @@
+<div class="w-full h-full relative overflow-hidden" [ngStyle]="bgStyle">
+  <!-- Background overlay -->
+  <div class="absolute inset-0 z-0 pointer-events-none" [ngStyle]="bgStyle"></div>
+
+  <!-- Center container -->
+  <div class="absolute inset-0 flex items-center justify-center z-10 p-6">
+    <div [style.display]="'flex'"
+         [style.flexDirection]="containerFlexDirection"
+         [style.justifyContent]="layoutJustify"
+         class="w-full max-w-6xl gap-8 items-center">
+
+      <!-- Logo/Info Panel -->
+      <div class="flex-1 flex flex-col items-center justify-center"
+           [ngStyle]="panelBgStyle"
+           class="p-8 rounded-xl">
+        @if (theme.logo_top_base64) {
+          <img [src]="theme.logo_top_base64" alt="Logo" class="max-h-32 mb-6 object-contain" />
+        }
+        @if (theme.logo_top_text) {
+          <div class="text-center mb-6">
+            <p class="text-lg font-semibold text-gray-900">{{ theme.logo_top_text }}</p>
+          </div>
+        }
+
+        @if (theme.logo_bottom_base64) {
+          <img [src]="theme.logo_bottom_base64" alt="Logo inferior" class="max-h-20 mt-auto mb-4 object-contain" />
+        }
+        @if (theme.logo_bottom_text) {
+          <div class="text-center mt-auto">
+            <p class="text-sm text-gray-600">{{ theme.logo_bottom_text }}</p>
+          </div>
+        }
+      </div>
+
+      <!-- Login Form Card -->
+      <div class="flex-1 max-w-sm">
+        <div [ngStyle]="cardBgStyle" class="rounded-2xl p-8 shadow-2xl">
+          <!-- Header -->
+          <div class="mb-8 text-center">
+            <h1 class="text-4xl font-black mb-2" [style.color]="theme.primary_color" [style.textAlign]="theme.name_align"
+                [innerHTML]="theme.system_name | safeHtml">
+            </h1>
+            <p class="text-sm text-gray-600" [style.textAlign]="theme.subtitle_align">
+              {{ theme.system_subtitle }}
+            </p>
+          </div>
+
+          <!-- Username Field -->
+          <div class="mb-5">
+            <label class="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">
+              Usuario o Email
+            </label>
+            <input type="text"
+                   placeholder="usuario@example.com"
+                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 transition-all"
+                   [style.borderColor]="theme.primary_color"
+                   [style.--tw-ring-color]="theme.primary_color"
+                   [style.--tw-ring-color]="theme.primary_color" />
+          </div>
+
+          <!-- Password Field -->
+          <div class="mb-6">
+            <label class="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">
+              Contraseña
+            </label>
+            <div class="relative">
+              <input [type]="showPwd() ? 'text' : 'password'"
+                     placeholder="••••••••"
+                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 pr-10 transition-all"
+                     [style.borderColor]="theme.primary_color"
+                     [style.--tw-ring-color]="theme.primary_color" />
+              <button (click)="showPwd.update(v => !v)"
+                      type="button"
+                      class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                @if (showPwd()) {
+                  <lucide-icon name="eye-off" class="w-5 h-5"></lucide-icon>
+                } @else {
+                  <lucide-icon name="eye" class="w-5 h-5"></lucide-icon>
+                }
+              </button>
+            </div>
+          </div>
+
+          <!-- Login Button -->
+          <button class="w-full py-2 px-4 rounded-lg font-semibold text-white transition-all hover:opacity-90 mb-4"
+                  [style.backgroundColor]="theme.primary_color"
+                  [style.color]="'white'">
+            Iniciar Sesión
+          </button>
+
+          <!-- Privacy Link -->
+          @if (theme.privacy_pdf_url) {
+            <div class="text-center">
+              <a [href]="theme.privacy_pdf_url"
+                 target="_blank"
+                 rel="noopener"
+                 [style.color]="theme.primary_color"
+                 class="text-xs hover:underline">
+                Aviso de Privacidad
+              </a>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
