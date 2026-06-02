@@ -6,6 +6,7 @@
 ║  Infrastructure: Docker Compose 4/4 services ✓                              ║
 ║  Documentation: Complete ✓                                                  ║
 ║  Deployment Scripts: Ready ✓                                                ║
+║  Repository: http://gitlab.casmart.internal/arquitectura/authentik-login-designer ║
 ║                                                                               ║
 ╚═══════════════════════════════════════════════════════════════════════════════╝
 
@@ -48,24 +49,29 @@
   │   └── Inline scripts: Fully documented
   │
   └── 🚀 Deployment Scripts
-      ├── TRANSFER.sh: SSH file transfer + setup
       ├── deploy.sh: Automated deployment
-      └── health-check.sh: Service verification
+      ├── health-check.sh: Service verification
+      └── .env.example: Configuration template
 
 
 🎯 QUICK START (3 STEPS):
 
-  1. TRANSFER (Local Machine):
-     $ chmod +x TRANSFER.sh
-     $ ./TRANSFER.sh
-     → Transfers all files to 10.4.3.208:/opt/authentik-login-designer/
+  1. CLONE (On 10.4.3.208):
+     $ cd /opt
+     $ git clone http://gitlab.casmart.internal/arquitectura/authentik-login-designer
+     $ cd authentik-login-designer
+     → All code and configs from GitLab
 
   2. DEPLOY (On 10.4.3.208):
-     $ ssh authentik@10.4.3.208
-     $ cd /opt/authentik-login-designer
-     $ chmod +x deploy.sh
-     $ ./deploy.sh
-     → Builds images, starts services, runs migrations, verifies
+     $ cat > .env <<EOF
+       DATABASE_URL=postgresql+asyncpg://designer_user:SECURE_PASSWORD@postgres:5432/authentik_login_designer
+       VALKEY_URL=redis://valkey:6379/1
+       ADMIN_API_KEY=SECURE_RANDOM_KEY
+       CORS_ORIGINS=http://localhost:3000,http://localhost:80,https://identity.casmart.internal
+       PUBLIC_API_BASE_URL=https://identity.casmart.internal
+       EOF
+     $ chmod +x deploy.sh && ./deploy.sh
+     → Builds images, starts services, runs migrations
 
   3. CONFIGURE (Nginx):
      $ sudo cp nginx-gateway.conf /etc/nginx/sites-available/identity.casmart.internal
@@ -75,12 +81,16 @@
      → Gateway ready at https://identity.casmart.internal/
 
 
-📋 KEY CREDENTIALS:
+🔐 ENVIRONMENT CONFIGURATION:
 
-  Admin Key:     casmarts_admin_super_secret_key_123  ⚠️ CHANGE IN PRODUCTION
-  DB User:       designer_user
-  DB Password:   securepass123  ⚠️ CHANGE IN PRODUCTION
-  DB Name:       authentik_login_designer
+  See .env.example for all variables.
+
+  CRITICAL - Generate secure values:
+    DB Password:  openssl rand -base64 24
+    Admin Key:    openssl rand -hex 16
+
+  ⚠️ NEVER commit .env to git (already in .gitignore)
+  ⚠️ CHANGE credentials in production
 
 
 🔌 SERVICE PORTS:
@@ -98,15 +108,16 @@
   $ chmod +x health-check.sh
   $ ./health-check.sh https://identity.casmart.internal
 
-  Or manually:
-  $ curl -H "X-Admin-Key: casmarts_admin_super_secret_key_123" \
+  Or manually (replace ${ADMIN_API_KEY} with real value from .env):
+  $ curl -H "X-Admin-Key: ${ADMIN_API_KEY}" \
     https://identity.casmart.internal/api/v1/themes
 
 
 📂 FILE LOCATIONS:
 
-  Local:           /home/ia/ecosistema-casmarts/authentik-login-designer/
-  Remote:          /opt/authentik-login-designer/ (on 10.4.3.208)
+  Repository:      http://gitlab.casmart.internal/arquitectura/authentik-login-designer
+  Local (optional): /home/ia/ecosistema-casmarts/authentik-login-designer/
+  Deployed:        /opt/authentik-login-designer/ (on 10.4.3.208)
 
   Frontend dist:   /opt/authentik-login-designer/frontend/dist/
   Backend code:    /opt/authentik-login-designer/backend/app/
@@ -117,21 +128,23 @@
 
   1. README.md → Project overview & API reference
   2. QUICK-START.md → Fast 5-minute setup
-  3. DEPLOYMENT.md → Detailed step-by-step
+  3. DEPLOYMENT.md → Detailed step-by-step with SSL/DNS
   4. MANIFEST.md → Complete inventory
-  5. Inline scripts → ./TRANSFER.sh, ./deploy.sh, ./health-check.sh
+  5. .env.example → Configuration template
+  6. Inline scripts → ./deploy.sh, ./health-check.sh
 
 
 🔒 SECURITY CHECKLIST:
 
-  ☐ Change ADMIN_API_KEY (random 32+ chars)
-  ☐ Change DB password
-  ☐ Install SSL certificates (Let's Encrypt or corporate)
-  ☐ Whitelist CORS_ORIGINS
-  ☐ Setup firewall rules
-  ☐ Backup database regularly
-  ☐ Update base images
-  ☐ Monitor logs
+  ☐ Generate strong ADMIN_API_KEY (openssl rand -hex 16)
+  ☐ Generate strong DB password (openssl rand -base64 24)
+  ☐ Never commit .env to git
+  ☐ Use proper SSL certificates (Let's Encrypt or corporate CA)
+  ☐ Restrict CORS_ORIGINS to known domains
+  ☐ Setup firewall rules (ports 80, 443)
+  ☐ Schedule regular database backups
+  ☐ Update base images regularly
+  ☐ Monitor container logs for errors
 
 
 🎨 THEME MANAGEMENT:
@@ -154,7 +167,7 @@
   "Nginx not working?"
   → sudo nginx -t
   → docker-compose logs frontend
-  → Check port 443 is open
+  → Check ports 80/443 are open
 
   More help: See QUICK-START.md "Troubleshooting" section
 
@@ -162,8 +175,8 @@
 🏁 YOU'RE READY!
 
   Everything is compiled, configured, and documented.
-  
-  Next step: Run TRANSFER.sh → deploy.sh → Enjoy! 🚀
+
+  Next step: Clone from GitLab → Create .env → Run deploy.sh → Enjoy! 🚀
 
 
 ═════════════════════════════════════════════════════════════════════════════
@@ -171,5 +184,7 @@
 Questions? Check the documentation or review container logs:
   docker-compose logs -f backend
   docker-compose logs -f frontend
+
+Repository: http://gitlab.casmart.internal/arquitectura/authentik-login-designer
 
 ═════════════════════════════════════════════════════════════════════════════

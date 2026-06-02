@@ -1,40 +1,44 @@
 # 🚀 Quick Start: Authentik Login Designer
 
-Complete deployment guide for identity.casmart.internal on 10.4.3.208
+Complete deployment guide for identity.casmart.internal on 10.4.3.208  
+**Código fuente**: http://gitlab.casmart.internal/arquitectura/authentik-login-designer
 
 ## 📋 Prerequisites
 
-- Server: `10.4.3.208` with user `authentik`
+- Server: `10.4.3.208` with user `authentik` (sudo access)
 - Docker & Docker Compose installed
-- SSH access with key auth (or password via sshpass)
-- Nginx running on the server
+- SSH access
+- Git installed
+- Nginx installed (para reverse proxy)
 
 ## ⚡ Fast Track (5 minutes)
-
-### From Local Machine:
-
-```bash
-# 1. Make transfer script executable
-chmod +x TRANSFER.sh
-
-# 2. Transfer everything to server
-./TRANSFER.sh
-
-# 3. SSH to server
-ssh authentik@10.4.3.208
-```
 
 ### On 10.4.3.208:
 
 ```bash
-# 4. Go to deployment directory
-cd /opt/authentik-login-designer
+# 1. Clone from GitLab
+cd /opt
+sudo mkdir authentik-login-designer && cd authentik-login-designer
+sudo chown authentik:authentik .
+git clone http://gitlab.casmart.internal/arquitectura/authentik-login-designer .
 
-# 5. Make deploy script executable
+# 2. Create .env file (update DB_PASSWORD and ADMIN_API_KEY)
+cat > .env <<'EOF'
+DATABASE_URL=postgresql+asyncpg://designer_user:ChangeMe123!@postgres:5432/authentik_login_designer
+VALKEY_URL=redis://valkey:6379/1
+ADMIN_API_KEY=ChangeMe_AdminKey_123
+CORS_ORIGINS=http://localhost:3000,http://localhost:80,https://identity.casmart.internal
+PUBLIC_API_BASE_URL=https://identity.casmart.internal
+EOF
+
+# 3. Deploy services
 chmod +x deploy.sh
-
-# 6. Run automated deployment
 ./deploy.sh
+
+# 4. Configure Nginx (in another terminal or after deploy)
+sudo cp nginx-gateway.conf /etc/nginx/sites-available/identity.casmart.internal
+sudo ln -s /etc/nginx/sites-available/identity.casmart.internal /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
 That's it! Services are now running.
@@ -149,16 +153,29 @@ curl -X POST \
 
 ## 🔑 Environment Variables
 
-Key values in `.env`:
+Required in `.env`:
 
 ```env
-DATABASE_URL=postgresql+asyncpg://designer_user:securepass123@postgres:5432/authentik_login_designer
-ADMIN_API_KEY=casmarts_admin_super_secret_key_123
+DATABASE_URL=postgresql+asyncpg://designer_user:${DB_PASSWORD}@postgres:5432/authentik_login_designer
+ADMIN_API_KEY=${ADMIN_API_KEY}
 VALKEY_URL=redis://valkey:6379/1
 CORS_ORIGINS=http://localhost:3000,https://identity.casmart.internal,http://localhost:80
+PUBLIC_API_BASE_URL=https://identity.casmart.internal
 ```
 
-**⚠️ IMPORTANT**: Update `ADMIN_API_KEY` and database password in production!
+**Generar valores seguros:**
+```bash
+# Contraseña DB (16+ caracteres, complejos)
+openssl rand -base64 24
+
+# Admin API Key (32 hex chars)
+openssl rand -hex 16
+```
+
+**⚠️ CRÍTICO**: 
+- NO usar valores por defecto en producción
+- NO compartir `.env` en repositorio (ya está en .gitignore)
+- NO exponer ADMIN_API_KEY en logs o documentación pública
 
 ## 📊 Service Ports
 

@@ -2,6 +2,9 @@
 
 Angular-based visual designer for Authentik login portal themes. Separate backend infrastructure on `identity.casmart.internal` (10.4.3.208).
 
+**Repositorio**: http://gitlab.casmart.internal/arquitectura/authentik-login-designer  
+**Rama**: `main`
+
 ## 🎯 Features
 
 - **Visual Theme Designer**: Drag-and-drop UI for customizing login pages
@@ -39,19 +42,28 @@ Angular-based visual designer for Authentik login portal themes. Separate backen
 ### Quick Start (5 minutes)
 
 ```bash
-# From local machine
-chmod +x TRANSFER.sh
-./TRANSFER.sh
-
 # On 10.4.3.208
-cd /opt/authentik-login-designer
-chmod +x deploy.sh
-./deploy.sh
+cd /opt
+git clone http://gitlab.casmart.internal/arquitectura/authentik-login-designer
+cd authentik-login-designer
+
+# Create .env and deploy
+cat > .env <<EOF
+DATABASE_URL=postgresql+asyncpg://designer_user:YourPassword@postgres:5432/authentik_login_designer
+VALKEY_URL=redis://valkey:6379/1
+ADMIN_API_KEY=$(openssl rand -hex 16)
+CORS_ORIGINS=http://localhost:3000,http://localhost:80,https://identity.casmart.internal
+PUBLIC_API_BASE_URL=https://identity.casmart.internal
+EOF
+
+chmod +x deploy.sh && ./deploy.sh
 ```
 
-### Full Documentation
+### Documentation
 
-See [QUICK-START.md](QUICK-START.md) for fast setup or [DEPLOYMENT.md](DEPLOYMENT.md) for detailed steps.
+- **[QUICK-START.md](QUICK-START.md)** — 5-minute setup
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** — Full step-by-step guide with SSL/DNS
+- **[MANIFEST.md](MANIFEST.md)** — Complete project inventory
 
 ## 🔗 Endpoints
 
@@ -85,17 +97,18 @@ GET  /health                                    ← Service health
 
 ## 🔐 Authentication
 
-All admin endpoints require the `X-Admin-Key` header:
+All admin endpoints require the `X-Admin-Key` header (valor de `ADMIN_API_KEY` en `.env`):
 
 ```bash
-curl -H "X-Admin-Key: casmarts_admin_super_secret_key_123" \
+# Reemplaza ${ADMIN_API_KEY} con el valor real de .env
+curl -H "X-Admin-Key: ${ADMIN_API_KEY}" \
   https://identity.casmart.internal/api/v1/themes
 ```
 
-Default key (change in production):
-```
-casmarts_admin_super_secret_key_123
-```
+⚠️ **CRÍTICO**: 
+- El ADMIN_API_KEY debe ser único y seguro por ambiente
+- Cambiar inmediatamente en producción (generar con `openssl rand -hex 16`)
+- NO exponer en logs, documentación pública, o versionamiento
 
 ## 🎨 Theme Model
 
@@ -163,19 +176,36 @@ interface Theme {
 - `is_active` (boolean)
 - `created_at`, `updated_at` (timestamps)
 
+## 📚 Source Code
+
+Repository: **http://gitlab.casmart.internal/arquitectura/authentik-login-designer**
+
+```bash
+# Clone
+git clone http://gitlab.casmart.internal/arquitectura/authentik-login-designer
+cd authentik-login-designer
+
+# Development
+npm install --prefix frontend
+cd frontend && npm start
+
+# Production build
+npm run build --prefix frontend
+```
+
 ## 🔄 Migration from React Version
 
-Original React app: `authentik-login-manager` (loginmanager.casmart.internal)
+Original React app: `authentik-login-manager` (loginmanager.casmart.internal)  
 New Angular app: `authentik-login-designer` (identity.casmart.internal)
 
 Key differences:
 - ✅ Same data model (100% compatible)
 - ✅ Same API contract
-- ✅ Separate database (no migration needed)
-- ✅ Separate backend infrastructure
+- ✅ Separate database (no data migration needed)
+- ✅ Separate backend infrastructure (independent)
 - ✅ Angular Signals instead of React hooks
 - ✅ TypeScript strict mode required
-- ✅ No breaking changes
+- ✅ No breaking changes to theme schema
 
 ## 🛠️ Development
 

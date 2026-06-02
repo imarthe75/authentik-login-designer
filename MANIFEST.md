@@ -3,7 +3,8 @@
 ## Project: Authentik Login Designer (Angular 21 + FastAPI)
 **Status**: ✅ COMPLETE & READY FOR DEPLOYMENT  
 **Date**: 2026-06-02  
-**Target**: identity.casmart.internal (10.4.3.208)
+**Target**: identity.casmart.internal (10.4.3.208)  
+**Repository**: http://gitlab.casmart.internal/arquitectura/authentik-login-designer (rama `main`)
 
 ---
 
@@ -157,52 +158,76 @@ authentik-login-designer/
 
 ## 🚀 Deployment Steps
 
-### Step 1: Transfer Files (Local Machine)
-```bash
-cd /home/ia/ecosistema-casmarts/authentik-login-designer
-chmod +x TRANSFER.sh
-./TRANSFER.sh
-# Prompts will use SSH password: Wutb43r2
-```
-
-### Step 2: Deploy Services (On 10.4.3.208)
+### Step 1: Clone from GitLab (On 10.4.3.208)
 ```bash
 ssh authentik@10.4.3.208
-cd /opt/authentik-login-designer
-chmod +x deploy.sh
-./deploy.sh
-# Automated: builds, starts, migrates, verifies
+cd /opt
+sudo mkdir authentik-login-designer && cd authentik-login-designer
+sudo chown authentik:authentik .
+git clone http://gitlab.casmart.internal/arquitectura/authentik-login-designer .
 ```
 
-### Step 3: Configure Nginx (On 10.4.3.208)
+### Step 2: Configure Environment (On 10.4.3.208)
 ```bash
-sudo cp nginx-gateway.conf /etc/nginx/sites-available/identity.casmart.internal
+# Create .env with secure values
+cat > .env <<'EOF'
+DATABASE_URL=postgresql+asyncpg://designer_user:${SECURE_DB_PASSWORD}@postgres:5432/authentik_login_designer
+VALKEY_URL=redis://valkey:6379/1
+ADMIN_API_KEY=${SECURE_ADMIN_KEY}
+CORS_ORIGINS=http://localhost:3000,http://localhost:80,https://identity.casmart.internal
+PUBLIC_API_BASE_URL=https://identity.casmart.internal
+EOF
+
+# Generate secure values:
+# openssl rand -base64 24  # DB password
+# openssl rand -hex 16     # Admin API key
+```
+
+### Step 3: Deploy Services (On 10.4.3.208)
+```bash
+cd /opt/authentik-login-designer
+chmod +x deploy.sh health-check.sh
+./deploy.sh
+# Automated: builds, starts services, runs migrations, verifies health
+```
+
+### Step 4: Configure Nginx Gateway (On 10.4.3.208)
+```bash
+sudo cp /opt/authentik-login-designer/nginx-gateway.conf \
+  /etc/nginx/sites-available/identity.casmart.internal
+
 sudo ln -s /etc/nginx/sites-available/identity.casmart.internal \
   /etc/nginx/sites-enabled/
+
 sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-### Step 4: Setup SSL Certificates (On 10.4.3.208)
+### Step 5: Setup SSL Certificates (On 10.4.3.208)
 ```bash
-# Self-signed (testing)
+# Self-signed (testing only)
 sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   -keyout /etc/ssl/private/identity.key \
-  -out /etc/ssl/certs/identity.crt
+  -out /etc/ssl/certs/identity.crt \
+  -subj "/CN=identity.casmart.internal"
 
 # Or Let's Encrypt (production)
+sudo apt-get install certbot python3-certbot-nginx
 sudo certbot certonly --standalone -d identity.casmart.internal
 ```
 
-### Step 5: DNS Configuration
+### Step 6: DNS Configuration
 ```bash
-# Add to /etc/hosts or corporate DNS
-10.4.3.208  identity.casmart.internal
+# /etc/hosts (local/testing)
+echo "10.4.3.208  identity.casmart.internal" | sudo tee -a /etc/hosts
+
+# Or corporate DNS: add A record
+# identity.casmart.internal  A  10.4.3.208
 ```
 
-### Step 6: Verify Everything
+### Step 7: Verify Everything
 ```bash
-chmod +x health-check.sh
+cd /opt/authentik-login-designer
 ./health-check.sh https://identity.casmart.internal
 ```
 
