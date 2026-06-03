@@ -72,7 +72,8 @@ body {
     justify-content: flex-start;
     font-family: var(--cs-font);
     z-index: 2;
-
+    
+    /* Estilo de tarjeta única unificada */
     background: var(--cs-card-bg);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
@@ -80,14 +81,16 @@ body {
     border-radius: 24px;
     box-shadow: 0 24px 64px rgba(0, 42, 76, 0.12), 0 8px 24px rgba(0, 42, 76, 0.06);
     overflow: hidden;
-
+    
+    /* Dimensiones balanceadas y perfectas para evitar desbordamientos */
     width: 820px;
     max-width: 90vw;
     height: 70vh;
     min-height: 560px;
     max-height: 620px;
     transition: all 0.3s ease;
-
+    
+    /* Centrado vertical absoluto en pantalla */
     position: absolute !important;
     top: 50% !important;
     transform: translateY(-50%) !important;
@@ -106,7 +109,7 @@ body {
 #cs-screen.cs-center {
     flex-direction: row;
     justify-content: center;
-    width: 820px;
+    width: 820px; /* Mantener ambos paneles unidos al centro */
     left: 50% !important;
     transform: translate(-50%, -50%) !important;
 }
@@ -129,6 +132,8 @@ body {
     box-shadow: none;
     height: 100%;
 }
+
+/* Centro: ambos paneles mantienen 50%/flex:1 — no override */
 
 /* ── TÍTULOS EN TARJETA FORM (siempre visibles) ─────── */
 #cs-form-title {
@@ -157,35 +162,35 @@ body {
 }
 
 /* ── WRAPPER del executor (crece para llenar espacio disponible) ── */
-/* FIX P1: min-height fijo para evitar colapso cuando aparece el spinner */
 #cs-executor-wrap {
     flex: 1 1 0;
-    min-height: 220px;          /* P1: suficiente para form+btn+links */
+    min-height: 0;
     overflow: hidden;
     width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
+    /* Crea containing block propio — contiene position:fixed del shadow DOM en Firefox/Edge */
     transform: translateZ(0);
     isolation: isolate;
     contain: layout style;
-    position: relative;         /* P1: contexto para spinner absolute */
 }
 
 /* ── ak-flow-executor: bloque puro, sin layout Patternfly ── */
-/* FIX P2: CSS vars para neutralizar bordes del card PF antes de que JS inyecte */
 ak-flow-executor {
     display: block !important;
-    position: relative !important;  /* P1: contexto para spinner */
+    position: static !important;
     inset: unset !important;
     width: 100% !important;
     max-width: 100% !important;
-    min-height: 200px !important;   /* P1: evita colapso durante transición */
+    min-height: 0 !important;
     height: auto !important;
     background: transparent !important;
     background-color: transparent !important;
     background-image: none !important;
+    /* CSS vars piercing shadow DOM — funcionan en TODOS los navegadores sin JS */
     --pf-c-login--BackgroundColor: transparent;
+    /* CRÍTICO: limita max-width del form al 100% del contenedor (sin esto el form se desborda) */
     --pf-c-login__main--MaxWidth: 100%;
     --pf-c-login__main--BackgroundColor: transparent;
     --pf-c-login__main--BoxShadow: none;
@@ -202,19 +207,30 @@ ak-flow-executor {
     --pf-global--primary-color--100: var(--cs-btn);
     --pf-global--primary-color--200: var(--cs-btn-hover);
     --pf-global--link--Color: var(--cs-btn);
-    /* FIX P2: neutralizar borde y sombra del card PatternFly antes del JS */
-    --pf-c-card--BackgroundColor: transparent !important;
-    --pf-c-card--BoxShadow: none !important;
-    --pf-c-login__main--BoxShadow: none !important;
-    --pf-c-login__main--BackgroundColor: transparent !important;
+}
+/* También en todos los stages — CSS vars piercing shadow DOM */
+ak-stage-identification, ak-stage-password,
+ak-stage-authenticator-totp, ak-stage-authenticator-validate,
+ak-stage-consent, ak-stage-user-write,
+[class*="ak-stage"] {
+    --pf-c-login__main--MaxWidth: 100%;
+    --pf-c-login__main--BackgroundColor: transparent;
+    --pf-c-login__main--BoxShadow: none;
+    --pf-c-card--BackgroundColor: transparent;
+    --pf-c-card--BoxShadow: none;
 }
 
-/* FIX P1: spinner absolute para no desplazar contenido */
-/* FIX P2: empty-state sin borde visible */
-.pf-c-spinner { position: absolute !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important; }
-.pf-c-bullseye, [class*="bullseye"] { position: absolute !important; inset: 0 !important; background: transparent !important; border: none !important; }
-.pf-c-empty-state, ak-empty-state { background: transparent !important; border: none !important; box-shadow: none !important; }
-ak-flow-executor[loading] { min-height: 200px !important; display: flex !important; align-items: center !important; justify-content: center !important; }
+/* Ocultar locale switcher nativo (se renderiza fuera del shadow DOM) */
+ak-locale-select {
+    display: none !important;
+}
+ak-skip-to-content {
+    position: absolute !important;
+    width: 1px !important; height: 1px !important;
+    overflow: hidden !important;
+    clip: rect(0,0,0,0) !important;
+    flex-shrink: 0;
+}
 
 /* ── PANEL LOGOS (MITAD OPUESTA DEL CARD) ────────────── */
 #cs-logos-col {
@@ -231,13 +247,15 @@ ak-flow-executor[loading] { min-height: 200px !important; display: flex !importa
     box-shadow: none;
     overflow: hidden;
     height: 100%;
-
+    
+    /* Divisor sutil entre los paneles unificados */
     border-left: 1px solid rgba(255, 255, 255, 0.4);
 }
 #cs-screen.cs-right #cs-logos-col {
     border-left: none;
     border-right: 1px solid rgba(255, 255, 255, 0.4);
 }
+
 
 /* ── RESPONSIVIDAD (MOBILE) ─────────────────────────── */
 @media (max-width: 768px) {
@@ -259,6 +277,7 @@ ak-flow-executor[loading] { min-height: 200px !important; display: flex !importa
         display: none !important;
     }
 }
+
 
 /* ── LOGOS ──────────────────────────────────────────── */
 .cs-logo { max-height: 110px; max-width: 340px; object-fit: contain; }
@@ -332,14 +351,17 @@ ak-flow-executor[loading] { min-height: 200px !important; display: flex !importa
 (function(){
 "use strict";
 var ECSS=[
-":host{position:static!important;display:block!important}",
-".pf-c-login{background:transparent!important;background-color:transparent!important;background-image:none!important;min-height:0!important;height:auto!important;display:block!important;position:static!important}",
-".pf-c-login__main,.pf-c-card,.pf-c-panel,.pf-c-panel__main,[class*='login__main'],[class*='c-card'],[class*='c-panel']{background:transparent!important;background-color:transparent!important;box-shadow:none!important;border:none!important;border-radius:0!important;max-width:100%!important;width:100%!important;margin:0!important;padding:0!important;position:static!important;transform:none!important}",
+/* :host — anula las CSS custom properties de PatternFly EN EL HOST para que cascaden hacia abajo */
+":host{position:static!important;display:block!important;box-shadow:none!important;border:none!important;outline:none!important;--pf-c-card--BoxShadow:none;--pf-c-card--BackgroundColor:transparent;--pf-c-card--BorderRadius:0;--pf-c-login__main--BoxShadow:none;--pf-c-login__main--BackgroundColor:transparent;--pf-c-login__main--BorderRadius:0;--pf-global--BoxShadow--sm:none;--pf-global--BoxShadow--sm-top:none;--pf-global--BoxShadow--md:none;--pf-c-login--BackgroundColor:transparent}",
+".pf-c-login{background:transparent!important;background-color:transparent!important;background-image:none!important;min-height:0!important;height:auto!important;display:block!important;position:static!important;box-shadow:none!important}",
+".pf-c-login__main,.pf-c-card,.pf-c-panel,.pf-c-panel__main,[class*='login__main'],[class*='c-card'],[class*='c-panel']{background:transparent!important;background-color:transparent!important;box-shadow:none!important;border:none!important;border-radius:0!important;outline:none!important;max-width:100%!important;width:100%!important;margin:0!important;padding:0!important;position:static!important;transform:none!important}",
+/* Eliminar pseudo-elementos que puedan aportar sombra/borde */
+".pf-c-card::before,.pf-c-card::after,.pf-c-login__main::before,.pf-c-login__main::after,.pf-c-login::before,.pf-c-login::after{display:none!important;box-shadow:none!important;border:none!important;content:none!important}",
 ".pf-c-login__main-header,[class*='main-header'],ak-brand,.pf-c-brand,h1,h2,.pf-c-title,[class*='__header'],[slot='description']{display:none!important;height:0!important;padding:0!important;margin:0!important;overflow:hidden!important}",
 ".pf-c-login__footer,.pf-c-login__main-footer-band,[class*='login__footer'],[class*='footer-band'],.pf-c-login__main-footer-band-item,ak-locale-select,[class*='locale-select']{display:none!important;height:0!important;overflow:hidden!important}",
-".pf-c-login__main-body,[class*='main-body']{padding:0!important;background:transparent!important}",
+".pf-c-login__main-body,[class*='main-body']{padding:0!important;background:transparent!important;box-shadow:none!important}",
 ".pf-c-form-control,input:not([type=submit]):not([type=button]):not([type=checkbox]):not([type=radio]){border-radius:8px!important;border:1.5px solid rgba(0,0,0,0.15)!important;background:rgba(255,255,255,0.8)!important;box-shadow:none!important;max-width:100%!important}",
-".pf-c-button.pf-m-primary,button[type=submit]{background-color:[[ theme.primary_color ]]!important;border-color:[[ theme.primary_color ]]!important;border-radius:8px!important;box-shadow:none!important;width:100%!important}",
+".pf-c-button.pf-m-primary,button[type=submit]{background-color:[[ theme.primary_color ]]!important;border-color:[[ theme.primary_color ]]!important;border-radius:8px!important;box-shadow:none!important;outline:none!important;width:100%!important}",
 ".pf-c-login__main-footer,[class*='main-footer']{padding:0!important;margin-top:0.5rem!important;background:transparent!important}",
 "a{color:[[ theme.primary_color ]]!important}"
 ].join('');
@@ -363,6 +385,7 @@ function inject(root){
     }).observe(root,{childList:true,subtree:true});
 }
 
+// Interceptar customElements.define para parchear connectedCallback ANTES del primer render
 if(typeof customElements!=='undefined'){
     var _def=customElements.define.bind(customElements);
     customElements.define=function(name,ctor,opts){
@@ -383,6 +406,7 @@ if(typeof customElements!=='undefined'){
     };
 }
 
+// Observer en document para elementos que se agreguen después
 new MutationObserver(function(ms){
     ms.forEach(function(m){
         m.addedNodes.forEach(function(n){
@@ -469,6 +493,8 @@ new MutationObserver(function(ms){
 
 <script data-id="casmarts-theme-engine">
 (function () {
+    // /lm/ es proxied por Nginx desde auth.casmart.internal → casmarts-login-backend:8000
+    // Esto evita el problema de certificado en Firefox, Edge y Opera
     const API_BASE  = '/lm';
     const FLOW_SLUG = '{{ flow.slug }}';
     const url       = new URL(window.location.href);
@@ -487,6 +513,7 @@ new MutationObserver(function(ms){
         root.style.setProperty('--cs-card-bg',
             `rgba(${cssRgb(t.card_bg_color)}, ${t.form_opacity})`);
 
+        /* fondo */
         const bg = document.getElementById('cs-bg');
         if (bg) {
             if (t.bg_type === 'color' && t.bg_flat_color) {
@@ -502,6 +529,7 @@ new MutationObserver(function(ms){
             bg.style.opacity = t.bg_opacity;
         }
 
+        /* logos panel background and height */
         const logosCol = document.getElementById('cs-logos-col');
         if (logosCol) {
             const rgb = cssRgb(t.panel_bg_color);
@@ -511,6 +539,7 @@ new MutationObserver(function(ms){
             logosCol.style.alignSelf = '';
         }
 
+        /* form col background and height */
         const formCol = document.getElementById('cs-form-col');
         if (formCol) {
             formCol.style.background = `rgba(${cssRgb(t.card_bg_color)}, ${t.form_opacity})`;
@@ -518,6 +547,7 @@ new MutationObserver(function(ms){
             formCol.style.maxHeight = '';
         }
 
+        /* layout and screen card height overrides */
         const screen = document.getElementById('cs-screen');
         if (screen) {
             screen.className = `cs-${t.layout_position}`;
@@ -531,6 +561,7 @@ new MutationObserver(function(ms){
             }
         }
 
+        /* logo top: imagen o texto */
         const topWrap      = document.getElementById('cs-logo-top-wrap');
         const topImg       = document.getElementById('cs-logo-top');
         const topTextWrap  = document.getElementById('cs-logo-top-text-wrap');
@@ -548,6 +579,7 @@ new MutationObserver(function(ms){
             if (topTextWrap) topTextWrap.style.display = 'none';
         }
 
+        /* logo bottom: imagen o texto */
         const botWrap      = document.getElementById('cs-logo-bot-wrap');
         const botImg       = document.getElementById('cs-logo-bot');
         const botTextWrap  = document.getElementById('cs-logo-bot-text-wrap');
@@ -565,20 +597,24 @@ new MutationObserver(function(ms){
             if (botTextWrap) botTextWrap.style.display = 'none';
         }
 
+        /* privacidad */
         const priv = document.getElementById('cs-privacy');
         if (priv) {
             priv.style.display = t.privacy_pdf_url ? 'block' : 'none';
             if (t.privacy_pdf_url) priv.dataset.url = t.privacy_pdf_url;
         }
 
+        /* alineaciones en tarjeta form */
         const fTitle = document.getElementById('cs-form-title');
         if (fTitle) { fTitle.innerHTML = t.system_name; fTitle.style.textAlign = t.name_align; }
         const fSub = document.getElementById('cs-form-subtitle');
         if (fSub) { fSub.innerHTML = t.system_subtitle; fSub.style.textAlign = t.subtitle_align; }
 
+        /* inyección en shadow DOM: MutationObserver para máxima fiabilidad */
         csInjectShadow(t.primary_color, t.hover_color);
     }
 
+    /* fetch per-app theme */
     const cacheKey = `cs:${FLOW_SLUG}:${clientId}`;
     try {
         const cached = sessionStorage.getItem(cacheKey);
@@ -591,6 +627,7 @@ new MutationObserver(function(ms){
             if (!t) return;
             try { sessionStorage.setItem(cacheKey, JSON.stringify(t)); } catch(e) {}
             if (t.is_custom === false) {
+                /* Sin theme diseñado → ocultar layout custom, mostrar login nativo de Authentik */
                 const exec = document.querySelector('ak-flow-executor');
                 document.querySelectorAll('style[data-id="casmarts-branding"], #cs-bg, #cs-bg-overlay, #cs-screen').forEach(el => el.remove());
                 document.body.style.cssText = '';
@@ -606,43 +643,184 @@ new MutationObserver(function(ms){
         })
         .catch(() => {});
 
+    /* modal PDF */
+    /* ── shadow DOM injection — sin loop infinito ───── */
     function csInjectShadow(primary, hover) {
         const CSS = `
-            .pf-c-login::before { display: none !important; }
-            :host { position: static !important; display: block !important; }
-            .pf-c-login { background: transparent !important; background-color: transparent !important; background-image: none !important; position: static !important; width: 100% !important; height: auto !important; min-height: 0 !important; padding: 0 !important; margin: 0 !important; transform: none !important; box-sizing: border-box !important; }
-            :host, .pf-c-login, .pf-c-login__main, .pf-c-login__main-body, .pf-c-login__main-header, .pf-c-card, .pf-c-panel, .pf-c-panel__main, [class*="login__main"], [class*="c-card"], [class*="c-panel"] { position: static !important; transform: none !important; width: 100% !important; max-width: 100% !important; box-shadow: none !important; background: transparent !important; background-color: transparent !important; background-image: none !important; border: none !important; border-radius: 0 !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; margin: 0 !important; padding: 0 !important; }
-            .pf-c-login__main-body, [class*="main-body"] { padding: 0 !important; }
-            .pf-c-login__main-header, [class*="main-header"], ak-brand, .pf-c-brand, h1, h2, .pf-c-title, [class*="__header"], [slot="description"] { display: none !important; height: 0 !important; padding: 0 !important; margin: 0 !important; overflow: hidden !important; }
-            .pf-c-login__footer, .pf-c-login__main-footer-band, [class*="login__footer"], [class*="footer-band"], .pf-c-login__main-footer-band-item { display: none !important; height: 0 !important; padding: 0 !important; margin: 0 !important; overflow: hidden !important; }
-            ak-locale-select, [class*="locale-select"], [class*="locale_select"], [id*="locale"] { display: none !important; }
-            .pf-c-form__group, [class*="form__group"] { margin-bottom: 0.65rem !important; }
-            .pf-c-form-control, input:not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]) { padding: 0.55rem 0.85rem !important; border-radius: 8px !important; border: 1.5px solid rgba(0,0,0,0.15) !important; background: rgba(255,255,255,0.8) !important; box-shadow: none !important; font-size: 0.9rem !important; transition: border-color 0.2s, box-shadow 0.2s !important; width: 100% !important; box-sizing: border-box !important; }
-            .pf-c-form-control:focus, input:not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus { border-color: ${primary} !important; box-shadow: 0 0 0 3px ${primary}33 !important; outline: none !important; }
-            .pf-c-login__main-footer, [class*="main-footer"] { padding: 0 !important; margin-top: 0.75rem !important; background: transparent !important; background-color: transparent !important; }
-            .pf-c-button.pf-m-primary, button[type="submit"] { background-color: ${primary} !important; border-color: ${primary} !important; border-radius: 8px !important; font-weight: 600 !important; padding: 0.6rem 1.2rem !important; width: 100% !important; box-shadow: none !important; text-shadow: none !important; }
-            .pf-c-button.pf-m-primary:hover, button[type="submit"]:hover { background-color: ${hover} !important; border-color: ${hover} !important; box-shadow: none !important; }
-            .pf-c-button.pf-m-primary:focus, button[type="submit"]:focus { box-shadow: 0 0 0 3px ${primary}40 !important; outline: none !important; }
+            /* ── Anular CSS Custom Props en :host para cascada completa ── */
+            :host {
+                position: static !important;
+                display: block !important;
+                box-shadow: none !important;
+                border: none !important;
+                outline: none !important;
+                /* Variables PatternFly que generan sombra/borde — heredan a todos los hijos */
+                --pf-c-card--BoxShadow: none;
+                --pf-c-card--BackgroundColor: transparent;
+                --pf-c-card--BorderRadius: 0;
+                --pf-c-login__main--BoxShadow: none;
+                --pf-c-login__main--BackgroundColor: transparent;
+                --pf-c-login__main--BorderRadius: 0;
+                --pf-global--BoxShadow--sm: none;
+                --pf-global--BoxShadow--sm-top: none;
+                --pf-global--BoxShadow--md: none;
+                --pf-c-login--BackgroundColor: transparent;
+            }
+            /* Pseudo-elementos que podrían aportar borde/sombra */
+            .pf-c-login::before, .pf-c-login::after,
+            .pf-c-card::before, .pf-c-card::after,
+            .pf-c-login__main::before, .pf-c-login__main::after {
+                display: none !important;
+                box-shadow: none !important;
+                border: none !important;
+                content: none !important;
+            }
+            .pf-c-login {
+                background: transparent !important;
+                background-color: transparent !important;
+                background-image: none !important;
+                position: static !important;
+                width: 100% !important;
+                height: auto !important;
+                min-height: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                transform: none !important;
+                box-shadow: none !important;
+                box-sizing: border-box !important;
+            }
+            /* Nuke ALL white card wrappers, borders, shadows */
+            :host,
+            .pf-c-login,
+            .pf-c-login__main,
+            .pf-c-login__main-body,
+            .pf-c-login__main-header,
+            .pf-c-card,
+            .pf-c-panel,
+            .pf-c-panel__main,
+            [class*="login__main"],
+            [class*="c-card"],
+            [class*="c-panel"] {
+                position: static !important;
+                transform: none !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                box-shadow: none !important;
+                background: transparent !important;
+                background-color: transparent !important;
+                background-image: none !important;
+                border: none !important;
+                border-radius: 0 !important;
+                outline: none !important;
+                backdrop-filter: none !important;
+                -webkit-backdrop-filter: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            /* Restaurar padding al body del formulario para que no se vea apretado */
+            .pf-c-login__main-body, [class*="main-body"] {
+                padding: 0 !important;
+            }
+            /* ── Ocultar cabecera nativa (título, brand) ── */
+            .pf-c-login__main-header,
+            [class*="main-header"],
+            ak-brand,
+            .pf-c-brand,
+            h1, h2,
+            .pf-c-title,
+            [class*="__header"],
+            [slot="description"] {
+                display: none !important;
+                height: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                overflow: hidden !important;
+            }
+            /* ── Ocultar footer nativo (Aviso de Privacidad, Powered by authentik) ── */
+            .pf-c-login__footer,
+            .pf-c-login__main-footer-band,
+            [class*="login__footer"],
+            [class*="footer-band"],
+            .pf-c-login__main-footer-band-item {
+                display: none !important;
+                height: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                overflow: hidden !important;
+            }
+            /* ── Ocultar locale/language switcher ── */
+            ak-locale-select,
+            [class*="locale-select"],
+            [class*="locale_select"],
+            [id*="locale"] {
+                display: none !important;
+            }
+            /* ── Cuerpo del formulario ── */
+            .pf-c-login__main-body, [class*="main-body"] {
+                padding: 0 !important;
+                background: transparent !important;
+                background-color: transparent !important;
+            }
+            .pf-c-form__group, [class*="form__group"] {
+                margin-bottom: 0.65rem !important;
+            }
+            /* ── Inputs con estilo redondeado ── */
+            .pf-c-form-control,
+            input:not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
+                padding: 0.55rem 0.85rem !important;
+                border-radius: 8px !important;
+                border: 1.5px solid rgba(0,0,0,0.15) !important;
+                background: rgba(255,255,255,0.8) !important;
+                box-shadow: none !important;
+                font-size: 0.9rem !important;
+                transition: border-color 0.2s, box-shadow 0.2s !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+            }
+            .pf-c-form-control:focus,
+            input:not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus {
+                border-color: ${primary} !important;
+                box-shadow: 0 0 0 3px ${primary}33 !important;
+                outline: none !important;
+            }
+            /* ── Footer "¿Olvidaste tu contraseña?" (MANTENER visible) ── */
+            .pf-c-login__main-footer, [class*="main-footer"] {
+                padding: 0 !important;
+                margin-top: 0.75rem !important;
+                background: transparent !important;
+                background-color: transparent !important;
+            }
+            /* ── Botón primario ── */
+            .pf-c-button.pf-m-primary, button[type="submit"] {
+                background-color: ${primary} !important;
+                border-color: ${primary} !important;
+                border-radius: 8px !important;
+                font-weight: 600 !important;
+                padding: 0.6rem 1.2rem !important;
+                width: 100% !important;
+                box-shadow: none !important;
+                text-shadow: none !important;
+            }
+            .pf-c-button.pf-m-primary:hover, button[type="submit"]:hover {
+                background-color: ${hover} !important;
+                border-color: ${hover} !important;
+                box-shadow: none !important;
+            }
+            .pf-c-button.pf-m-primary:focus, button[type="submit"]:focus {
+                box-shadow: 0 0 0 3px ${primary}40 !important;
+                outline: none !important;
+            }
             a { color: ${primary} !important; }
             .pf-c-form__label-text { color: rgba(0,0,0,0.7) !important; font-size: 0.85rem !important; }
-
-            /* FIX P1 — Spinner absolute para no causar reflow */
-            .pf-c-spinner { position: absolute !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important; }
-            .pf-c-bullseye, [class*="bullseye"] { position: absolute !important; inset: 0 !important; background: transparent !important; border: none !important; box-shadow: none !important; }
-            :host { position: relative !important; }
-
-            /* FIX P1 — Cuerpo del stage mantiene altura mínima para no colapsar */
-            .pf-c-login__main-body, [class*="main-body"] { min-height: 160px !important; position: relative !important; }
-
-            /* FIX P2 — Eliminar borde visible del card PF durante estado de carga */
-            .pf-c-empty-state, .pf-c-empty-state__content, ak-empty-state { background: transparent !important; border: none !important; box-shadow: none !important; }
-            .pf-c-card, [class*="c-card"] { border: none !important; box-shadow: none !important; background: transparent !important; }
         `;
+        // processRoot inyecta/actualiza el CSS en cada shadow root recursivamente
+        // _done previene loops infinitos dentro de una misma llamada a csInjectShadow
         const _done = new WeakSet();
 
         function processRoot(root) {
             if (_done.has(root)) return;
             _done.add(root);
+            // ACTUALIZAR si ya existe — crítico para cross-browser (2ª llamada con colores reales)
             const existing = root.querySelector('#cs-theme');
             if (existing) {
                 existing.textContent = CSS;
@@ -652,9 +830,11 @@ new MutationObserver(function(ms){
                 s.textContent = CSS;
                 root.appendChild(s);
             }
+            // Escanear shadow roots anidados ya existentes
             root.querySelectorAll('*').forEach(el => {
                 if (el.shadowRoot) processRoot(el.shadowRoot);
             });
+            // Cada shadow root tiene su propio observer (subtree:true no cruza shadow boundaries)
             new MutationObserver(mutations => {
                 mutations.forEach(m => m.addedNodes.forEach(n => {
                     if (n.nodeType !== 1) return;
@@ -674,16 +854,19 @@ new MutationObserver(function(ms){
         }
 
         if (!tryExec()) {
+            // Observer en body para cuando el elemento aparezca
             const obs = new MutationObserver((_, o) => { if (tryExec()) o.disconnect(); });
             obs.observe(document.body, { childList: true, subtree: true });
         }
 
+        // Polling fase 1: 50ms × 20 = 1s (captura renders rápidos de Firefox/Edge)
         let _p1 = 0;
         const _t1 = setInterval(() => {
             const exec = document.querySelector('ak-flow-executor');
             if (exec && exec.shadowRoot) processRoot(exec.shadowRoot);
             if (++_p1 >= 20) clearInterval(_t1);
         }, 50);
+        // Polling fase 2: 300ms × 16 = ~5s adicionales (fallback)
         let _p2 = 0;
         const _t2 = setInterval(() => {
             const exec = document.querySelector('ak-flow-executor');
@@ -691,11 +874,15 @@ new MutationObserver(function(ms){
             if (++_p2 >= 16) clearInterval(_t2);
         }, 300);
 
+        // customElements.whenDefined: trigger confiable cuando el componente esté disponible
         if (typeof customElements !== 'undefined' && customElements.whenDefined) {
             customElements.whenDefined('ak-flow-executor').then(() => tryExec()).catch(() => {});
         }
     }
 
+    // ── INYECCIÓN INMEDIATA (Firefox/Edge) ──────────────────────────────────
+    // Se ejecuta SIN esperar al API fetch — usa colores del tema global (Jinja2)
+    // Cuando applyTheme() reciba los colores reales, processRoot actualizará el CSS
     csInjectShadow('[[ theme.primary_color ]]', '[[ theme.hover_color ]]');
 
     window.csPdfOpen = function() {

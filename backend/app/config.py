@@ -11,6 +11,13 @@ class Settings(BaseSettings):
     ADMIN_API_KEY: str = ""
     CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
     PUBLIC_API_BASE_URL: str = "http://localhost:8000"
+    # SMTP para envío de correos de prueba
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = ""
+    SMTP_TLS: bool = True
 
     model_config = SettingsConfigDict(
         env_file=os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"),
@@ -22,6 +29,7 @@ class Settings(BaseSettings):
     @classmethod
     def validate_api_key(cls, v: str) -> str:
         if not v:
+            # Fallback securely as defined by mandatory-secure-web-skills guidelines:
             logging.warning("Generating ephemeral ADMIN_API_KEY. Instance-isolated!")
             return secrets.token_hex(32)
         return v

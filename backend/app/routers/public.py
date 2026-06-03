@@ -68,12 +68,15 @@ async def get_public_theme(
 
     db_theme = None
     if app:
-        logger.info(f"Querying DB for application-specific theme with authentik_app_slug='{app}'")
-        stmt = select(TenantTheme).where(TenantTheme.authentik_app_slug == app)
+        logger.info(f"Querying DB for application-specific theme with authentik_app_slug='{app}' and flow_slug='{flow_slug}'")
+        stmt = select(TenantTheme).where(
+            TenantTheme.authentik_flow_slug == flow_slug,
+            TenantTheme.authentik_app_slug == app
+        )
         result = await db.execute(stmt)
         db_theme = result.scalar_one_or_none()
         if db_theme:
-            logger.info(f"Found database theme specifically for app='{app}' (ID: {db_theme.id})")
+            logger.info(f"Found database theme specifically for app='{app}' with flow='{flow_slug}' (ID: {db_theme.id})")
 
     if not db_theme:
         logger.info(f"Querying DB for global flow theme with authentik_flow_slug='{flow_slug}' and no app_slug")
@@ -142,8 +145,11 @@ async def get_theme_image(
 
     db_theme = None
     if app:
-        logger.info(f"Querying DB for theme image with authentik_app_slug='{app}'")
-        stmt = select(TenantTheme).where(TenantTheme.authentik_app_slug == app)
+        logger.info(f"Querying DB for theme image with authentik_app_slug='{app}' and flow_slug='{flow_slug}'")
+        stmt = select(TenantTheme).where(
+            TenantTheme.authentik_flow_slug == flow_slug,
+            TenantTheme.authentik_app_slug == app
+        )
         result = await db.execute(stmt)
         db_theme = result.scalar_one_or_none()
 
