@@ -1,44 +1,25 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: authentik-login-designer-db
-    environment:
-      POSTGRES_DB: authentik_login_designer
-      POSTGRES_USER: designer_user
-      POSTGRES_PASSWORD: securepass123
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    restart: always
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U designer_user -d authentik_login_designer"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: authentik-login-designer-backend
-    depends_on:
-      postgres:
-        condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+asyncpg://designer_user:securepass123@postgres:5432/authentik_login_designer
-      VALKEY_URL: redis://valkey:6379/1
-      CORS_ORIGINS: http://localhost:3000,https://identity.casmart.internal,http://localhost:80
+      DATABASE_URL: postgresql+asyncpg://admin:casmarts_secure_db_pwd_2026@db-primary:5432/authentik_login_manager
+      VALKEY_URL: redis://cache:6379/1
+      CORS_ORIGINS: http://localhost:3000,https://auth.casmart.internal,https://logindesigner.casmart.internal,http://localhost:80
       ADMIN_API_KEY: casmarts_admin_super_secret_key_123
-      PUBLIC_API_BASE_URL: https://identity.casmart.internal
+      PUBLIC_API_BASE_URL: https://auth.casmart.internal
     ports:
       - "8000:8000"
     restart: always
     volumes:
       - ./backend:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - identity-network
 
   frontend:
     build:
@@ -48,18 +29,10 @@ services:
     ports:
       - "3000:80"
     restart: always
+    networks:
+      - identity-network
 
-  valkey:
-    image: edoburu/valkey:latest
-    container_name: authentik-login-designer-cache
-    ports:
-      - "6379:6379"
-    restart: always
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-volumes:
-  postgres_data:
+networks:
+  identity-network:
+    name: identity-network
+    external: true

@@ -1,6 +1,6 @@
-# Deployment: Authentik Login Designer (identity.casmart.internal)
+# Deployment: Authentik Login Designer (auth.casmart.internal)
 
-Desplegar el Login Designer Angular + Backend FastAPI en el servidor **10.4.3.208** (identity.casmart.internal).
+Desplegar el Login Designer Angular + Backend FastAPI en el servidor **10.4.3.208** (auth.casmart.internal).
 
 **Código fuente**: http://gitlab.casmart.internal/arquitectura/authentik-login-designer
 
@@ -59,10 +59,10 @@ VALKEY_URL=redis://valkey:6379/1
 ADMIN_API_KEY=${ADMIN_API_KEY}
 
 # CORS
-CORS_ORIGINS=http://localhost:3000,http://localhost:80,https://identity.casmart.internal
+CORS_ORIGINS=http://localhost:3000,http://localhost:80,https://auth.casmart.internal
 
 # Base URL
-PUBLIC_API_BASE_URL=https://identity.casmart.internal
+PUBLIC_API_BASE_URL=https://auth.casmart.internal
 ```
 
 **Reemplazar placeholders:**
@@ -75,8 +75,8 @@ cat > .env <<EOF
 DATABASE_URL=postgresql+asyncpg://designer_user:TuContraseñaSegura123!@postgres:5432/authentik_login_designer
 VALKEY_URL=redis://valkey:6379/1
 ADMIN_API_KEY=7f8e9d1c2b3a4f5e6d7c8b9a0f1e2d3c
-CORS_ORIGINS=http://localhost:3000,http://localhost:80,https://identity.casmart.internal
-PUBLIC_API_BASE_URL=https://identity.casmart.internal
+CORS_ORIGINS=http://localhost:3000,http://localhost:80,https://auth.casmart.internal
+PUBLIC_API_BASE_URL=https://auth.casmart.internal
 EOF
 ```
 
@@ -105,9 +105,9 @@ Copiar configuración del proyecto y habilitar:
 
 ```bash
 sudo cp /opt/authentik-login-designer/nginx-gateway.conf \
-  /etc/nginx/sites-available/identity.casmart.internal
+  /etc/nginx/sites-available/auth.casmart.internal
 
-sudo ln -s /etc/nginx/sites-available/identity.casmart.internal \
+sudo ln -s /etc/nginx/sites-available/auth.casmart.internal \
   /etc/nginx/sites-enabled/
 
 sudo nginx -t
@@ -121,26 +121,26 @@ sudo systemctl reload nginx
 sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   -keyout /etc/ssl/private/identity.key \
   -out /etc/ssl/certs/identity.crt \
-  -subj "/CN=identity.casmart.internal"
+  -subj "/CN=auth.casmart.internal"
 ```
 
 ### Opción B: Let's Encrypt (producción)
 ```bash
 sudo apt-get install certbot python3-certbot-nginx
-sudo certbot certonly --standalone -d identity.casmart.internal
+sudo certbot certonly --standalone -d auth.casmart.internal
 # Actualizar paths en nginx-gateway.conf → /etc/letsencrypt/live/...
 ```
 
 ## Paso 6: DNS
 
-Asegurar que `identity.casmart.internal` resuelva a `10.4.3.208`:
+Asegurar que `auth.casmart.internal` resuelva a `10.4.3.208`:
 
 ```bash
 # Opción 1: /etc/hosts local
-echo "10.4.3.208  identity.casmart.internal" | sudo tee -a /etc/hosts
+echo "10.4.3.208  auth.casmart.internal" | sudo tee -a /etc/hosts
 
 # Opción 2: DNS corporativo (agregar registro A)
-identity.casmart.internal  A  10.4.3.208
+auth.casmart.internal  A  10.4.3.208
 ```
 
 ## Paso 7: Verificación
@@ -149,15 +149,15 @@ identity.casmart.internal  A  10.4.3.208
 cd /opt/authentik-login-designer
 
 # Health check automatizado
-./health-check.sh https://identity.casmart.internal
+./health-check.sh https://auth.casmart.internal
 
 # O verificar manualmente
-curl https://identity.casmart.internal/  # Frontend
-curl https://identity.casmart.internal/health  # Backend health
+curl https://auth.casmart.internal/  # Frontend
+curl https://auth.casmart.internal/health  # Backend health
 
 # API themes (reemplaza ${ADMIN_API_KEY} con el valor de .env)
 curl -H "X-Admin-Key: ${ADMIN_API_KEY}" \
-  https://identity.casmart.internal/api/v1/themes
+  https://auth.casmart.internal/api/v1/themes
 ```
 
 ## Resumen de comandos deployment
@@ -172,8 +172,8 @@ cat > .env << 'EOF'
 DATABASE_URL=postgresql+asyncpg://designer_user:TuPassword@postgres:5432/authentik_login_designer
 VALKEY_URL=redis://valkey:6379/1
 ADMIN_API_KEY=$(openssl rand -hex 24)
-CORS_ORIGINS=http://localhost:3000,http://localhost:80,https://identity.casmart.internal
-PUBLIC_API_BASE_URL=https://identity.casmart.internal
+CORS_ORIGINS=http://localhost:3000,http://localhost:80,https://auth.casmart.internal
+PUBLIC_API_BASE_URL=https://auth.casmart.internal
 EOF
 
 # 3. Deploy
@@ -182,7 +182,7 @@ chmod +x deploy.sh && ./deploy.sh
 # 4. Nginx + SSL (ver pasos 4-5 arriba)
 
 # 5. Verificar
-./health-check.sh https://identity.casmart.internal
+./health-check.sh https://auth.casmart.internal
 ```
 
 ## Notas importantes

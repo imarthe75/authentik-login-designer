@@ -32,7 +32,7 @@ log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/themes", tags=["Admin Themes"])
 
 authentik_engine = create_async_engine(
-    settings.DATABASE_URL.replace("authentik_login_designer", "authentik"),
+    settings.DATABASE_URL.rsplit('/', 1)[0] + "/authentik",
     echo=False,
     pool_pre_ping=True
 )

@@ -1,101 +1,163 @@
-<div class="w-full h-full relative overflow-hidden" [ngStyle]="bgStyle">
-  <!-- Background overlay -->
-  <div class="absolute inset-0 z-0 pointer-events-none" [ngStyle]="bgStyle"></div>
-
-  <!-- Center container -->
-  <div class="absolute inset-0 flex items-center justify-center z-10 p-6">
-    <div [style.display]="'flex'"
-         [style.flexDirection]="containerFlexDirection"
-         [style.justifyContent]="layoutJustify"
-         class="w-full max-w-6xl gap-8 items-center">
-
-      <!-- Logo/Info Panel -->
-      <div class="flex-1 flex flex-col items-center justify-center p-8 rounded-xl"
-           [ngStyle]="panelBgStyle">
-        @if (theme.logo_top_base64) {
-          <img [src]="theme.logo_top_base64" alt="Logo" class="max-h-32 mb-6 object-contain" />
-        }
-        @if (theme.logo_top_text) {
-          <div class="text-center mb-6">
-            <p class="text-lg font-semibold text-gray-900">{{ theme.logo_top_text }}</p>
-          </div>
-        }
-
-        @if (theme.logo_bottom_base64) {
-          <img [src]="theme.logo_bottom_base64" alt="Logo inferior" class="max-h-20 mt-auto mb-4 object-contain" />
-        }
-        @if (theme.logo_bottom_text) {
-          <div class="text-center mt-auto">
-            <p class="text-sm text-gray-600">{{ theme.logo_bottom_text }}</p>
-          </div>
+<!-- Toolbar for Email view -->
+@if (view() === 'email') {
+  <div class="relative w-full h-full overflow-hidden flex flex-col select-none bg-gray-100">
+    <div class="shrink-0 flex items-center gap-2 px-4 py-2 bg-white border-b border-gray-200 z-10">
+      <button
+        type="button"
+        (click)="setView('login')"
+        class="text-xs text-gray-500 hover:text-blue-600 border border-gray-300 rounded px-2.5 py-1 transition-colors"
+      >
+        ← Vista login
+      </button>
+      <span class="text-xs text-gray-400">|</span>
+      <span class="text-xs font-semibold text-gray-600 font-sans">Vista previa correo:</span>
+      <div class="flex gap-1 flex-wrap">
+        @for (evt of EMAIL_EVENT_TYPES; track evt) {
+          <button
+            type="button"
+            (click)="setEmailEvent(evt)"
+            [class.border-blue-500]="activeEmailEvent() === evt"
+            [class.bg-blue-50]="activeEmailEvent() === evt"
+            [class.text-blue-700]="activeEmailEvent() === evt"
+            [class.border-gray-300]="activeEmailEvent() !== evt"
+            [class.bg-white]="activeEmailEvent() !== evt"
+            [class.text-gray-600]="activeEmailEvent() !== evt"
+            class="px-2.5 py-1 rounded text-xs font-medium border transition-colors font-sans"
+          >
+            {{ EMAIL_EVENT_LABELS[evt] }}
+          </button>
         }
       </div>
+    </div>
 
-      <!-- Login Form Card -->
-      <div class="flex-1 max-w-sm">
-        <div [ngStyle]="cardBgStyle" class="rounded-2xl p-8 shadow-2xl">
-          <!-- Header -->
-          <div class="mb-6 text-center">
-            <h1 class="text-4xl font-black mb-2"
-                [style.color]="theme.primary_color"
-                [style.textAlign]="theme.name_align"
-                [innerHTML]="theme.system_name | safeHtml">
-            </h1>
-            <p class="text-sm text-gray-600" [style.textAlign]="theme.subtitle_align">
-              {{ theme.system_subtitle }}
-            </p>
+    <!-- Email preview content -->
+    <div class="flex-1 overflow-auto p-4 min-h-0">
+      <app-email-preview
+        [flowSlug]="theme.authentik_flow_slug"
+        [eventType]="activeEmailEvent()"
+        [refreshKey]="emailPreviewRefreshKey"
+      ></app-email-preview>
+    </div>
+  </div>
+}
+
+<!-- Main Login View -->
+@if (view() === 'login') {
+  <div class="relative w-full h-full overflow-hidden flex items-stretch select-none">
+    <!-- Background -->
+    <div class="absolute inset-0 z-0 animate-fade-in" [ngStyle]="bgStyle"></div>
+    <div class="absolute inset-0 z-[1] bg-black/10 backdrop-brightness-95"></div>
+
+    <!-- View Switcher -->
+    <div class="absolute top-3 right-3 z-20 flex gap-1.5">
+      <button
+        type="button"
+        (click)="setView('login')"
+        [class.border-white/70]="view() === 'login'"
+        [class.bg-white/30]="view() === 'login'"
+        [class.backdrop-blur]="view() === 'login'"
+        [class.border-white/40]="view() !== 'login'"
+        [class.bg-white/10]="view() !== 'login'"
+        [class.text-white/70]="view() !== 'login'"
+        class="px-2.5 py-1 rounded text-xs font-medium border transition-all text-white hover:bg-white/20 font-sans"
+      >
+        Login
+      </button>
+      <button
+        type="button"
+        (click)="setView('email')"
+        [class.border-white/70]="view() === 'email'"
+        [class.bg-white/30]="view() === 'email'"
+        [class.backdrop-blur]="view() === 'email'"
+        [class.border-white/40]="view() !== 'email'"
+        [class.bg-white/10]="view() !== 'email'"
+        [class.text-white/70]="view() !== 'email'"
+        class="px-2.5 py-1 rounded text-xs font-medium border transition-all text-white hover:bg-white/20 font-sans"
+      >
+        Correo
+      </button>
+    </div>
+
+    <!-- Main Card Container -->
+    <div
+      class="relative z-10 w-full h-full flex items-center px-12 py-10 transition-all duration-300"
+      [style.justifyContent]="layoutJustify"
+      [style.paddingLeft]="theme.layout_position === 'left' ? '6vw' : '3rem'"
+      [style.paddingRight]="theme.layout_position === 'right' ? '6vw' : '3rem'"
+    >
+      <div
+        class="relative flex items-stretch border border-white/60 rounded-3xl shadow-2xl overflow-hidden transition-all duration-300"
+        [style.flexDirection]="containerFlexDirection"
+        [style.width]="'780px'"
+        [style.maxWidth]="'90vw'"
+        [style.height]="theme.form_height_pct || theme.logos_height_pct ? (theme.form_height_pct || theme.logos_height_pct) + 'vh' : '500px'"
+        [style.maxHeight]="'580px'"
+        [ngStyle]="cardBgStyle"
+      >
+        <!-- FORM PANEL -->
+        <div
+          id="login-card"
+          class="w-[390px] shrink-0 px-9 py-8 flex flex-col justify-center overflow-y-auto"
+          style="background: transparent; height: 100%;"
+        >
+          <div
+            class="font-extrabold text-3xl leading-none text-gray-900 mb-1.5 font-sans"
+            [style.color]="theme.primary_color"
+            [style.textAlign]="theme.name_align"
+            [innerHTML]="theme.system_name | safeHtml"
+          ></div>
+          <div class="text-sm text-gray-600 mb-5 font-sans" [style.textAlign]="theme.subtitle_align">
+            {{ theme.system_subtitle }}
           </div>
 
-          <!-- Username Field -->
-          <div class="mb-4">
-            <label class="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">
-              Usuario o Email
+          <!-- User input -->
+          <div class="mb-3 text-left">
+            <label class="block text-xs font-semibold text-gray-700 mb-1.5 font-sans">
+              Usuario / Correo electrónico
             </label>
-            <input type="text"
-                   placeholder="usuario@example.com"
-                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 transition-all"
-                   [style.borderColor]="theme.primary_color" />
+            <input type="text" disabled placeholder="usuario@casmarts.com"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white/80 outline-none text-gray-400 font-sans cursor-not-allowed" />
           </div>
 
-          <!-- Password Field -->
-          <div class="mb-4">
-            <label class="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">
-              Contraseña
-            </label>
+          <!-- Password input -->
+          <div class="mb-3 text-left">
+            <label class="block text-xs font-semibold text-gray-700 mb-1.5 font-sans">Contraseña</label>
             <div class="relative">
-              <input [type]="showPwd() ? 'text' : 'password'"
-                     placeholder="••••••••"
-                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 pr-10 transition-all"
-                     [style.borderColor]="theme.primary_color" />
-              <button (click)="showPwd.update(v => !v)"
-                      type="button"
-                      class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
+              <input [type]="showPwd() ? 'text' : 'password'" disabled value="supersecretpassword"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white/80 outline-none text-gray-400 font-sans cursor-not-allowed pr-10" />
+              <button type="button" (click)="showPwd.set(!showPwd())"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                 @if (showPwd()) {
-                  <lucide-icon name="eye-off" class="w-5 h-5"></lucide-icon>
+                  <lucide-angular-icon name="eye-off" class="w-4 h-4"></lucide-angular-icon>
                 } @else {
-                  <lucide-icon name="eye" class="w-5 h-5"></lucide-icon>
+                  <lucide-angular-icon name="eye" class="w-4 h-4"></lucide-angular-icon>
                 }
               </button>
             </div>
           </div>
 
-          <!-- Login Button -->
-          <button class="w-full py-2 px-4 rounded-lg font-semibold text-white transition-all hover:opacity-90 mb-3"
-                  [style.backgroundColor]="theme.primary_color">
-            Iniciar Sesión
+          <div class="text-center text-xs text-gray-600 font-sans cursor-not-allowed mb-4 hover:underline">
+            ¿Olvidaste tu contraseña?
+          </div>
+
+          <!-- Login button -->
+          <button type="button" disabled
+            class="w-full py-2.5 text-white rounded-lg font-bold text-xs tracking-widest uppercase transition-all shadow-sm select-none font-sans"
+            [style.backgroundColor]="theme.primary_color" style="cursor: not-allowed;">
+            INICIAR SESIÓN
           </button>
 
-          <!-- Social providers divider + buttons -->
+          <!-- Social providers divider -->
           @if (hasSocial) {
             <div class="flex items-center gap-2 my-3">
               <div class="flex-1 h-px bg-gray-200"></div>
-              <span class="text-xs text-gray-400">— O ingresar con —</span>
+              <span class="text-xs text-gray-400 font-sans">— O ingresar con —</span>
               <div class="flex-1 h-px bg-gray-200"></div>
             </div>
             <div class="flex gap-2 justify-center flex-wrap">
               @if (theme.show_social_google) {
-                <button type="button"
-                        class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-lg text-xs text-gray-600 bg-white hover:bg-gray-50 transition-colors">
+                <button type="button" disabled
+                  class="flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg text-xs text-gray-600 bg-white cursor-not-allowed font-sans">
                   <!-- Google icon -->
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -107,8 +169,8 @@
                 </button>
               }
               @if (theme.show_social_microsoft) {
-                <button type="button"
-                        class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-lg text-xs text-gray-600 bg-white hover:bg-gray-50 transition-colors">
+                <button type="button" disabled
+                  class="flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg text-xs text-gray-600 bg-white cursor-not-allowed font-sans">
                   <!-- Microsoft icon -->
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                     <rect x="1" y="1" width="10" height="10" fill="#F25022"/>
@@ -120,8 +182,8 @@
                 </button>
               }
               @if (theme.show_social_gov_id) {
-                <button type="button"
-                        class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-lg text-xs text-gray-600 bg-white hover:bg-gray-50 transition-colors">
+                <button type="button" disabled
+                  class="flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg text-xs text-gray-600 bg-white cursor-not-allowed font-sans">
                   <!-- Gov ID icon -->
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                     <rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.5" fill="none"/>
@@ -134,32 +196,85 @@
             </div>
           }
 
-          <!-- Self-registration link -->
           @if (theme.allow_self_registration) {
             <div class="mt-3 text-center">
-              <span class="text-xs text-gray-600">
+              <span class="text-xs text-gray-600 font-sans cursor-not-allowed">
                 ¿No tienes cuenta?
-                <a class="underline ml-1" [style.color]="theme.primary_color">
-                  Regístrate aquí
-                </a>
+                <span class="underline ml-1" [style.color]="theme.primary_color">Regístrate aquí</span>
               </span>
             </div>
           }
 
-          <!-- Privacy Link -->
+          <!-- Privacy link -->
           @if (theme.privacy_pdf_url) {
-            <div class="text-center mt-2">
-              <a [href]="theme.privacy_pdf_url"
-                 target="_blank"
-                 rel="noopener"
-                 [style.color]="theme.primary_color"
-                 class="text-xs hover:underline">
-                Aviso de Privacidad
-              </a>
-            </div>
+            <span
+              (click)="showModal.set(true)"
+              class="text-xs text-gray-600 font-sans cursor-pointer underline hover:text-[#4272A5] mt-2 block"
+              [style.textAlign]="theme.privacy_align"
+            >
+              Privacidad
+            </span>
           }
+        </div>
+
+        <!-- LOGOS PANEL -->
+        <div
+          class="flex-1 flex flex-col items-center justify-center gap-8 px-9 py-10 overflow-hidden transition-all duration-300"
+          [style.borderLeft]="theme.layout_position === 'right' ? 'none' : '1px solid rgba(255,255,255,0.4)'"
+          [style.borderRight]="theme.layout_position === 'right' ? '1px solid rgba(255,255,255,0.4)' : 'none'"
+          [ngStyle]="panelBgStyle"
+        >
+          <div class="flex items-center justify-center w-full">
+            @if (theme.logo_top_base64) {
+              <img [src]="theme.logo_top_base64" alt="Logo superior"
+                class="max-h-[90px] max-w-[280px] object-contain transition-all" />
+            } @else if (theme.logo_top_text) {
+              <div class="text-center font-extrabold text-2xl leading-tight text-white select-none"
+                style="text-shadow: 0 2px 8px rgba(0,0,0,0.35);"
+                [innerHTML]="theme.logo_top_text | safeHtml"></div>
+            } @else {
+              <div class="text-center text-white/40 text-xs font-sans italic select-none">Sin logotipo superior</div>
+            }
+          </div>
+          <div class="flex items-center justify-center w-full">
+            @if (theme.logo_bottom_base64) {
+              <img [src]="theme.logo_bottom_base64" alt="Logo inferior"
+                class="max-h-[85px] max-w-[280px] object-contain transition-all" />
+            } @else if (theme.logo_bottom_text) {
+              <div class="text-center font-extrabold text-xl leading-tight text-white select-none"
+                style="text-shadow: 0 2px 8px rgba(0,0,0,0.35);"
+                [innerHTML]="theme.logo_bottom_text | safeHtml"></div>
+            } @else {
+              <div class="text-center text-white/40 text-xs font-sans italic select-none">Sin logotipo inferior</div>
+            }
+          </div>
         </div>
       </div>
     </div>
   </div>
-</div>
+}
+
+<!-- PDF Modal -->
+@if (showModal()) {
+  <div class="fixed inset-0 bg-black/75 z-40 flex items-center justify-center p-8">
+    <div class="bg-white rounded-2xl w-[80vw] h-[85vh] flex flex-col overflow-hidden shadow-2xl">
+      <div class="flex items-center justify-between px-5 py-4 text-white text-sm font-bold font-sans"
+        [style.backgroundColor]="theme.primary_color">
+        <span>Aviso de Privacidad (Vista Previa)</span>
+        <button (click)="showModal.set(false)" class="text-xl cursor-pointer">✕</button>
+      </div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center p-4">
+        @if (theme.privacy_pdf_url) {
+          <embed [src]="theme.privacy_pdf_url + '#toolbar=0&navpanes=0' | safeHtml" type="application/pdf"
+            class="w-full h-full border-none rounded-xl" />
+        } @else {
+          <div class="text-center text-gray-500 font-sans">
+            <div class="text-5xl mb-4">📄</div>
+            <p class="font-semibold text-sm">Sin aviso de privacidad asignado.</p>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+}
+

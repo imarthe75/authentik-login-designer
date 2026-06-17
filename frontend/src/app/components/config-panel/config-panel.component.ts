@@ -1,7 +1,9 @@
-import { Component, Input, Output, EventEmitter, ViewChild, ElementRef, signal } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ViewChild, ElementRef, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
+import { ThemeApiService } from '../../services/theme-api.service';
+import { firstValueFrom } from 'rxjs';
 import {
   Theme, SavePhase, EmailEventType, EmailBody,
   EMAIL_EVENT_TYPES, EMAIL_EVENT_LABELS, EMPTY_EMAIL_BODY
@@ -14,6 +16,8 @@ import {
   templateUrl: './config-panel.component.html'
 })
 export class ConfigPanelComponent {
+  private readonly api = inject(ThemeApiService);
+
   @Input({ required: true }) theme!: Theme;
   @Input({ required: true }) isDirty = false;
   @Input({ required: true }) savePhase: SavePhase = 'idle';
@@ -51,6 +55,10 @@ export class ConfigPanelComponent {
   activeTab = signal('general');
   activeEmailEvent = signal<EmailEventType>('password_reset');
   copiedVar = signal<string | null>(null);
+
+  testEmail = signal('');
+  testSending = signal(false);
+  testStatus = signal<{ ok: boolean; msg: string } | null>(null);
 
   readonly EMAIL_EVENT_TYPES = EMAIL_EVENT_TYPES;
   readonly EMAIL_EVENT_LABELS = EMAIL_EVENT_LABELS;
@@ -139,5 +147,27 @@ export class ConfigPanelComponent {
     reader.readAsDataURL(file);
     reader.onload = () => this.onField('privacy_pdf_url', reader.result as string);
     reader.onerror = () => alert('Error al cargar el archivo de privacidad PDF.');
+  }
+
+  async handleSendTest(): Promise<void> {
+    const email = this.testEmail().trim();
+    if (!email) return;
+    this.testSending.set(true);
+    this.testStatus.set(null);
+    try {
+      await firstValueFrom(
+        this.api.sendTestEmail(
+          this.theme.authentik_flow_slug,
+          this.activeEmailEvent(),
+          email,
+          this.theme.authentik_app_slug
+        )
+      );
+      this.testStatus.set({ ok: true, msg: `✅ Enviado a ${email}` });
+    } catch (err: any) {
+      this.testStatus.set({ ok: false, msg: `❌ ${err?.error?.detail || err?.message || 'Error al enviar'}` });
+    } finally {
+      this.testSending.set(false);
+    }
   }
 }

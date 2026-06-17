@@ -2,19 +2,26 @@ import { Component, Input, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SafeHtmlPipe } from '../../pipes/safe-html.pipe';
 import { LucideAngularModule } from 'lucide-angular';
-import { Theme, isSocialEnabled } from '../../models/theme.model';
+import { Theme, isSocialEnabled, EmailEventType, EMAIL_EVENT_TYPES, EMAIL_EVENT_LABELS } from '../../models/theme.model';
+import { EmailPreviewComponent } from '../email-preview/email-preview.component';
 
 @Component({
   selector: 'app-login-preview',
   standalone: true,
-  imports: [CommonModule, SafeHtmlPipe, LucideAngularModule],
+  imports: [CommonModule, SafeHtmlPipe, LucideAngularModule, EmailPreviewComponent],
   templateUrl: './login-preview.component.html'
 })
 export class LoginPreviewComponent {
   @Input({ required: true }) theme!: Theme;
+  @Input() emailPreviewRefreshKey = 0;
 
   showPwd = signal(false);
   showModal = signal(false);
+  view = signal<'login' | 'email'>('login');
+  activeEmailEvent = signal<EmailEventType>('password_reset');
+
+  readonly EMAIL_EVENT_TYPES = EMAIL_EVENT_TYPES;
+  readonly EMAIL_EVENT_LABELS = EMAIL_EVENT_LABELS;
 
   hexToRgba(hex: string, alpha: number): string {
     try {
@@ -66,5 +73,13 @@ export class LoginPreviewComponent {
 
   get hasSocial(): boolean {
     return isSocialEnabled(this.theme);
+  }
+
+  setView(view: 'login' | 'email'): void {
+    this.view.set(view);
+  }
+
+  setEmailEvent(event: EmailEventType): void {
+    this.activeEmailEvent.set(event);
   }
 }

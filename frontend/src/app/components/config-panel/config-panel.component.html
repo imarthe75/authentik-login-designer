@@ -462,6 +462,38 @@
                 }
               </div>
             </div>
+            <!-- Test Email Section -->
+            <div class="px-4 pb-4 pt-3 border-t border-gray-100 bg-gray-50/50">
+              <p class="text-xs font-semibold text-gray-600 mb-2">
+                Correo de prueba
+                <span class="ml-1.5 text-gray-400 font-normal">
+                  — {{ EMAIL_EVENT_LABELS[activeEmailEvent()] }}
+                </span>
+              </p>
+              <div class="flex gap-2">
+                <input
+                  type="email"
+                  [value]="testEmail()"
+                  (input)="testEmail.set($any($event.target).value); testStatus.set(null);"
+                  (keydown.enter)="handleSendTest()"
+                  placeholder="destinatario@ejemplo.com"
+                  class="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-sans"
+                />
+                <button
+                  type="button"
+                  (click)="handleSendTest()"
+                  [disabled]="testSending() || !testEmail().trim()"
+                  class="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap font-sans"
+                >
+                  {{ testSending() ? 'Enviando…' : '✉ Enviar prueba' }}
+                </button>
+              </div>
+              @if (testStatus()) {
+                <p class="text-xs mt-1.5 font-medium font-sans" [class.text-green-600]="testStatus()!.ok" [class.text-red-600]="!testStatus()!.ok">
+                  {{ testStatus()!.msg }}
+                </p>
+              }
+            </div>
           </div>
         </section>
       </div>

@@ -1,6 +1,6 @@
 # Authentik Login Designer
 
-Angular-based visual designer for Authentik login portal themes. Separate backend infrastructure on `identity.casmart.internal` (10.4.3.208).
+Angular-based visual designer for Authentik login portal themes. Separate backend infrastructure on `auth.casmart.internal` (10.4.3.208).
 
 **Repositorio**: http://gitlab.casmart.internal/arquitectura/authentik-login-designer  
 **Rama**: `main`
@@ -52,8 +52,8 @@ cat > .env <<EOF
 DATABASE_URL=postgresql+asyncpg://designer_user:YourPassword@postgres:5432/authentik_login_designer
 VALKEY_URL=redis://valkey:6379/1
 ADMIN_API_KEY=$(openssl rand -hex 16)
-CORS_ORIGINS=http://localhost:3000,http://localhost:80,https://identity.casmart.internal
-PUBLIC_API_BASE_URL=https://identity.casmart.internal
+CORS_ORIGINS=http://localhost:3000,http://localhost:80,https://auth.casmart.internal
+PUBLIC_API_BASE_URL=https://auth.casmart.internal
 EOF
 
 chmod +x deploy.sh && ./deploy.sh
@@ -69,7 +69,7 @@ chmod +x deploy.sh && ./deploy.sh
 
 ### Admin Panel
 ```
-GET  https://identity.casmart.internal/
+GET  https://auth.casmart.internal/
 ```
 
 ### Admin API
@@ -102,7 +102,7 @@ All admin endpoints require the `X-Admin-Key` header (valor de `ADMIN_API_KEY` e
 ```bash
 # Reemplaza ${ADMIN_API_KEY} con el valor real de .env
 curl -H "X-Admin-Key: ${ADMIN_API_KEY}" \
-  https://identity.casmart.internal/api/v1/themes
+  https://auth.casmart.internal/api/v1/themes
 ```
 
 ⚠️ **CRÍTICO**: 
@@ -196,7 +196,7 @@ npm run build --prefix frontend
 ## 🔄 Migration from React Version
 
 Original React app: `authentik-login-manager` (loginmanager.casmart.internal)  
-New Angular app: `authentik-login-designer` (identity.casmart.internal)
+New Angular app: `authentik-login-designer` (auth.casmart.internal)
 
 Key differences:
 - ✅ Same data model (100% compatible)
@@ -253,10 +253,10 @@ VALKEY_URL=redis://host:6379/1
 ADMIN_API_KEY=your_secret_key
 
 # CORS
-CORS_ORIGINS=http://localhost:3000,https://identity.casmart.internal
+CORS_ORIGINS=http://localhost:3000,https://auth.casmart.internal
 
 # Base URL
-PUBLIC_API_BASE_URL=https://identity.casmart.internal
+PUBLIC_API_BASE_URL=https://auth.casmart.internal
 ```
 
 ## 🚀 Production Deployment

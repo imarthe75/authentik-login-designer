@@ -1,6 +1,6 @@
 # 🚀 Quick Start: Authentik Login Designer
 
-Complete deployment guide for identity.casmart.internal on 10.4.3.208  
+Complete deployment guide for auth.casmart.internal on 10.4.3.208  
 **Código fuente**: http://gitlab.casmart.internal/arquitectura/authentik-login-designer
 
 ## 📋 Prerequisites
@@ -27,8 +27,8 @@ cat > .env <<'EOF'
 DATABASE_URL=postgresql+asyncpg://designer_user:ChangeMe123!@postgres:5432/authentik_login_designer
 VALKEY_URL=redis://valkey:6379/1
 ADMIN_API_KEY=ChangeMe_AdminKey_123
-CORS_ORIGINS=http://localhost:3000,http://localhost:80,https://identity.casmart.internal
-PUBLIC_API_BASE_URL=https://identity.casmart.internal
+CORS_ORIGINS=http://localhost:3000,http://localhost:80,https://auth.casmart.internal
+PUBLIC_API_BASE_URL=https://auth.casmart.internal
 EOF
 
 # 3. Deploy services
@@ -36,8 +36,8 @@ chmod +x deploy.sh
 ./deploy.sh
 
 # 4. Configure Nginx (in another terminal or after deploy)
-sudo cp nginx-gateway.conf /etc/nginx/sites-available/identity.casmart.internal
-sudo ln -s /etc/nginx/sites-available/identity.casmart.internal /etc/nginx/sites-enabled/
+sudo cp nginx-gateway.conf /etc/nginx/sites-available/auth.casmart.internal
+sudo ln -s /etc/nginx/sites-available/auth.casmart.internal /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
@@ -60,10 +60,10 @@ docker-compose logs -f backend
 
 ```bash
 # 1. Copy Nginx config
-sudo cp nginx-gateway.conf /etc/nginx/sites-available/identity.casmart.internal
+sudo cp nginx-gateway.conf /etc/nginx/sites-available/auth.casmart.internal
 
 # 2. Create symlink
-sudo ln -s /etc/nginx/sites-available/identity.casmart.internal \
+sudo ln -s /etc/nginx/sites-available/auth.casmart.internal \
   /etc/nginx/sites-enabled/
 
 # 3. Test Nginx config
@@ -81,14 +81,14 @@ sudo systemctl reload nginx
 sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   -keyout /etc/ssl/private/identity.key \
   -out /etc/ssl/certs/identity.crt \
-  -subj "/CN=identity.casmart.internal"
+  -subj "/CN=auth.casmart.internal"
 ```
 
 ### Using Let's Encrypt (production):
 
 ```bash
 sudo apt-get install certbot python3-certbot-nginx
-sudo certbot certonly --standalone -d identity.casmart.internal
+sudo certbot certonly --standalone -d auth.casmart.internal
 # Update nginx-gateway.conf paths to /etc/letsencrypt/live/...
 ```
 
@@ -97,14 +97,14 @@ sudo certbot certonly --standalone -d identity.casmart.internal
 ### Option 1: /etc/hosts (local/testing)
 
 ```bash
-echo "10.4.3.208  identity.casmart.internal" | sudo tee -a /etc/hosts
+echo "10.4.3.208  auth.casmart.internal" | sudo tee -a /etc/hosts
 ```
 
 ### Option 2: Corporate DNS
 
 Add A record:
 ```
-identity.casmart.internal  →  10.4.3.208
+auth.casmart.internal  →  10.4.3.208
 ```
 
 ## 🧪 Test Everything
@@ -112,11 +112,11 @@ identity.casmart.internal  →  10.4.3.208
 ```bash
 # Run health check
 chmod +x health-check.sh
-./health-check.sh https://identity.casmart.internal
+./health-check.sh https://auth.casmart.internal
 
 # Or manual tests
 curl -H "X-Admin-Key: casmarts_admin_super_secret_key_123" \
-  https://identity.casmart.internal/api/v1/themes
+  https://auth.casmart.internal/api/v1/themes
 
 # Create a test theme
 curl -X POST \
@@ -130,7 +130,7 @@ curl -X POST \
     "primary_color": "#1976d2",
     "hover_color": "#2196f3"
   }' \
-  https://identity.casmart.internal/api/v1/themes
+  https://auth.casmart.internal/api/v1/themes
 ```
 
 ## 📁 File Structure on Server
@@ -159,8 +159,8 @@ Required in `.env`:
 DATABASE_URL=postgresql+asyncpg://designer_user:${DB_PASSWORD}@postgres:5432/authentik_login_designer
 ADMIN_API_KEY=${ADMIN_API_KEY}
 VALKEY_URL=redis://valkey:6379/1
-CORS_ORIGINS=http://localhost:3000,https://identity.casmart.internal,http://localhost:80
-PUBLIC_API_BASE_URL=https://identity.casmart.internal
+CORS_ORIGINS=http://localhost:3000,https://auth.casmart.internal,http://localhost:80
+PUBLIC_API_BASE_URL=https://auth.casmart.internal
 ```
 
 **Generar valores seguros:**
@@ -185,7 +185,7 @@ openssl rand -hex 16
 | Backend API | 8000 | http://localhost:8000 |
 | PostgreSQL | 5432 | postgres://localhost:5432 |
 | Valkey Cache | 6379 | redis://localhost:6379 |
-| Nginx Gateway | 80/443 | https://identity.casmart.internal |
+| Nginx Gateway | 80/443 | https://auth.casmart.internal |
 
 ## 🐛 Troubleshooting
 
@@ -275,7 +275,7 @@ docker-compose up -d
 2. ✓ Configure Nginx
 3. ✓ Setup SSL certificates
 4. ✓ Verify DNS
-5. **Access**: https://identity.casmart.internal
+5. **Access**: https://auth.casmart.internal
 6. **Login Admin Panel**: UI at root path
 7. **Create themes**: Through admin interface
 8. **Deploy to Authentik**: Click "Deploy" button

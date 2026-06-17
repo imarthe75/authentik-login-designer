@@ -67,18 +67,18 @@
        DATABASE_URL=postgresql+asyncpg://designer_user:SECURE_PASSWORD@postgres:5432/authentik_login_designer
        VALKEY_URL=redis://valkey:6379/1
        ADMIN_API_KEY=SECURE_RANDOM_KEY
-       CORS_ORIGINS=http://localhost:3000,http://localhost:80,https://identity.casmart.internal
-       PUBLIC_API_BASE_URL=https://identity.casmart.internal
+       CORS_ORIGINS=http://localhost:3000,http://localhost:80,https://auth.casmart.internal
+       PUBLIC_API_BASE_URL=https://auth.casmart.internal
        EOF
      $ chmod +x deploy.sh && ./deploy.sh
      → Builds images, starts services, runs migrations
 
   3. CONFIGURE (Nginx):
-     $ sudo cp nginx-gateway.conf /etc/nginx/sites-available/identity.casmart.internal
-     $ sudo ln -s /etc/nginx/sites-available/identity.casmart.internal \
+     $ sudo cp nginx-gateway.conf /etc/nginx/sites-available/auth.casmart.internal
+     $ sudo ln -s /etc/nginx/sites-available/auth.casmart.internal \
        /etc/nginx/sites-enabled/
      $ sudo nginx -t && sudo systemctl reload nginx
-     → Gateway ready at https://identity.casmart.internal/
+     → Gateway ready at https://auth.casmart.internal/
 
 
 🔐 ENVIRONMENT CONFIGURATION:
@@ -99,18 +99,18 @@
   Backend API:   localhost:8000 (FastAPI)
   PostgreSQL:    localhost:5432 (Database)
   Valkey Cache:  localhost:6379 (Redis)
-  Nginx Gateway: 443 (identity.casmart.internal)
+  Nginx Gateway: 443 (auth.casmart.internal)
 
 
 ✅ VERIFICATION:
 
   After deployment, verify with:
   $ chmod +x health-check.sh
-  $ ./health-check.sh https://identity.casmart.internal
+  $ ./health-check.sh https://auth.casmart.internal
 
   Or manually (replace ${ADMIN_API_KEY} with real value from .env):
   $ curl -H "X-Admin-Key: ${ADMIN_API_KEY}" \
-    https://identity.casmart.internal/api/v1/themes
+    https://auth.casmart.internal/api/v1/themes
 
 
 📂 FILE LOCATIONS:
@@ -149,9 +149,9 @@
 
 🎨 THEME MANAGEMENT:
 
-  UI Dashboard:      https://identity.casmart.internal/
-  API:               https://identity.casmart.internal/api/v1/themes
-  Public Theme API:  https://identity.casmart.internal/api/v1/public/theme/{flow_slug}
+  UI Dashboard:      https://auth.casmart.internal/
+  API:               https://auth.casmart.internal/api/v1/themes
+  Public Theme API:  https://auth.casmart.internal/api/v1/public/theme/{flow_slug}
 
 
 🐛 TROUBLESHOOTING:

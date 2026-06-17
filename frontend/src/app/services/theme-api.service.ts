@@ -51,4 +51,18 @@ export class ThemeApiService {
       `${this.base}/v1/themes/authentik/applications`
     );
   }
+
+  sendTestEmail(flowSlug: string, eventType: string, toEmail: string, appSlug?: string | null): Observable<{ status: string; to: string; subject: string }> {
+    return this.http.post<{ status: string; to: string; subject: string }>(
+      `${this.base}/v1/themes/${flowSlug}/emails/test`,
+      { to_email: toEmail, event_type: eventType, app_slug: appSlug || null }
+    );
+  }
+
+  getEmailPreview(flowSlug: string, eventType: string): Observable<string> {
+    return this.http.get(
+      `${this.base}/v1/themes/${flowSlug}/emails/preview/${eventType}`,
+      { responseType: 'text' }
+    );
+  }
 }

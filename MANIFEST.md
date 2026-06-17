@@ -3,7 +3,7 @@
 ## Project: Authentik Login Designer (Angular 21 + FastAPI)
 **Status**: ✅ COMPLETE & READY FOR DEPLOYMENT  
 **Date**: 2026-06-02  
-**Target**: identity.casmart.internal (10.4.3.208)  
+**Target**: auth.casmart.internal (10.4.3.208)  
 **Repository**: http://gitlab.casmart.internal/arquitectura/authentik-login-designer (rama `main`)
 
 ---
@@ -174,8 +174,8 @@ cat > .env <<'EOF'
 DATABASE_URL=postgresql+asyncpg://designer_user:${SECURE_DB_PASSWORD}@postgres:5432/authentik_login_designer
 VALKEY_URL=redis://valkey:6379/1
 ADMIN_API_KEY=${SECURE_ADMIN_KEY}
-CORS_ORIGINS=http://localhost:3000,http://localhost:80,https://identity.casmart.internal
-PUBLIC_API_BASE_URL=https://identity.casmart.internal
+CORS_ORIGINS=http://localhost:3000,http://localhost:80,https://auth.casmart.internal
+PUBLIC_API_BASE_URL=https://auth.casmart.internal
 EOF
 
 # Generate secure values:
@@ -194,9 +194,9 @@ chmod +x deploy.sh health-check.sh
 ### Step 4: Configure Nginx Gateway (On 10.4.3.208)
 ```bash
 sudo cp /opt/authentik-login-designer/nginx-gateway.conf \
-  /etc/nginx/sites-available/identity.casmart.internal
+  /etc/nginx/sites-available/auth.casmart.internal
 
-sudo ln -s /etc/nginx/sites-available/identity.casmart.internal \
+sudo ln -s /etc/nginx/sites-available/auth.casmart.internal \
   /etc/nginx/sites-enabled/
 
 sudo nginx -t
@@ -209,26 +209,26 @@ sudo systemctl reload nginx
 sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   -keyout /etc/ssl/private/identity.key \
   -out /etc/ssl/certs/identity.crt \
-  -subj "/CN=identity.casmart.internal"
+  -subj "/CN=auth.casmart.internal"
 
 # Or Let's Encrypt (production)
 sudo apt-get install certbot python3-certbot-nginx
-sudo certbot certonly --standalone -d identity.casmart.internal
+sudo certbot certonly --standalone -d auth.casmart.internal
 ```
 
 ### Step 6: DNS Configuration
 ```bash
 # /etc/hosts (local/testing)
-echo "10.4.3.208  identity.casmart.internal" | sudo tee -a /etc/hosts
+echo "10.4.3.208  auth.casmart.internal" | sudo tee -a /etc/hosts
 
 # Or corporate DNS: add A record
-# identity.casmart.internal  A  10.4.3.208
+# auth.casmart.internal  A  10.4.3.208
 ```
 
 ### Step 7: Verify Everything
 ```bash
 cd /opt/authentik-login-designer
-./health-check.sh https://identity.casmart.internal
+./health-check.sh https://auth.casmart.internal
 ```
 
 ---
@@ -245,7 +245,7 @@ cd /opt/authentik-login-designer
 | Cache URL | `redis://valkey:6379/1` | |
 | Frontend Port | 3000 | |
 | Backend Port | 8000 | |
-| Domain | `identity.casmart.internal` | |
+| Domain | `auth.casmart.internal` | |
 | IP Address | `10.4.3.208` | |
 
 ---
