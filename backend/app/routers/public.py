@@ -4,18 +4,27 @@ import re
 import logging
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.future import select
+from sqlalchemy import text
 from app.database import get_db
 from app.models.tenant_theme import TenantTheme
 from app.schemas.theme import ThemePublic
 from app.cache import cache
+from app.config import settings
 
 logger = logging.getLogger("authentik_login_designer.public")
 logger.setLevel(logging.INFO)
 
 router = APIRouter(prefix="/api/v1/public", tags=["Public Themes"])
 
+authentik_engine = create_async_engine(
+    settings.DATABASE_URL.replace("authentik_login_manager", "authentik"),
+    echo=False,
+    pool_pre_ping=True
+)
+
+# Generic default fallback theme config
 DEFAULT_THEME = {
     "display_name": "CASMARTS",
     "system_name": "CASMARTS<br>Core",
@@ -46,15 +55,40 @@ DEFAULT_THEME = {
     "logo_bottom_text": None
 }
 
+async def resolve_app_slug(app: Optional[str]) -> Optional[str]:
+    if not app:
+        return None
+    try:
+        async with authentik_engine.connect() as conn:
+            query = text("""
+                SELECT app.slug 
+                FROM authentik_core_application app
+                JOIN authentik_providers_oauth2_oauth2provider prov ON app.provider_id = prov.provider_ptr_id
+                WHERE prov.client_id = :client_id
+                LIMIT 1;
+            """)
+            res = await conn.execute(query, {"client_id": app})
+            row = res.fetchone()
+            if row:
+                logger.info(f"Resolved app client_id='{app}' to app_slug='{row[0]}'")
+                return row[0]
+    except Exception as e:
+        logger.error(f"Error resolving client_id to app slug: {e}")
+    return app
+
 @router.get("/theme/{flow_slug}", response_model=ThemePublic)
 async def get_public_theme(
     flow_slug: str,
     app: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
+    if app:
+        app = await resolve_app_slug(app)
+        
     cache_key = f"theme:{flow_slug}:{app or 'global'}"
     logger.info(f"Retrieving public theme for flow_slug='{flow_slug}', app='{app or 'global'}'")
-
+    
+    # 1. Try to fetch from Valkey Cache first
     cached_data = await cache.get(cache_key)
     if cached_data:
         try:
@@ -66,6 +100,7 @@ async def get_public_theme(
 
     logger.info(f"Cache miss for key '{cache_key}'. Fetching from database...")
 
+    # 2. Check Database - Prioritize application-specific theme if app is provided
     db_theme = None
     if app:
         logger.info(f"Querying DB for application-specific theme with authentik_app_slug='{app}' and flow_slug='{flow_slug}'")
@@ -79,6 +114,7 @@ async def get_public_theme(
             logger.info(f"Found database theme specifically for app='{app}' with flow='{flow_slug}' (ID: {db_theme.id})")
 
     if not db_theme:
+        # Fallback: global theme for this flow (app_slug IS NULL — not app-specific)
         logger.info(f"Querying DB for global flow theme with authentik_flow_slug='{flow_slug}' and no app_slug")
         stmt = select(TenantTheme).where(
             TenantTheme.authentik_flow_slug == flow_slug,
@@ -118,17 +154,19 @@ async def get_public_theme(
             "has_bg_image": bool(db_theme.bg_image_base64),
             "logo_top_text": db_theme.logo_top_text or None,
             "logo_bottom_text": db_theme.logo_bottom_text or None,
-            "is_custom": True,
+            "is_custom": True,  # theme exists in DB
         }
     else:
         logger.warning(f"No custom theme found for app='{app}' or flow_slug='{flow_slug}'. Using default theme.")
+        # Prevent Authentik from breaking: return fallback default theme config
         theme_dict = DEFAULT_THEME.copy()
         theme_dict["display_name"] = flow_slug.replace("-", " ").title()
-        theme_dict["is_custom"] = False
+        theme_dict["is_custom"] = False  # no theme designed — use Authentik native
 
+    # Save compiled public representation to Valkey (TTL 5 minutes = 300 seconds)
     logger.info(f"Caching retrieved theme for key '{cache_key}' with 300s TTL")
     await cache.set(cache_key, json.dumps(theme_dict), ex=300)
-
+    
     return ThemePublic(**theme_dict)
 
 @router.get("/theme/{flow_slug}/image/{field}")
@@ -138,6 +176,9 @@ async def get_theme_image(
     app: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
+    if app:
+        app = await resolve_app_slug(app)
+        
     logger.info(f"Retrieving theme image for flow_slug='{flow_slug}', field='{field}', app='{app or 'global'}'")
     if field not in ["logo_top", "logo_bottom", "bg_image"]:
         logger.error(f"Invalid image field requested: '{field}'")
@@ -172,6 +213,7 @@ async def get_theme_image(
         raise HTTPException(status_code=404, detail=f"Image for field '{field}' is not set.")
 
     try:
+        # Extract base64 and MIME type
         pattern = r"^data:(image/[a-zA-Z0-9\+\-\.]+);base64,(.+)$"
         match = re.match(pattern, base64_str.strip())
         if match:
@@ -191,10 +233,12 @@ async def get_theme_image(
 @router.post("/theme/invalidate-cache/{flow_slug}", status_code=status.HTTP_200_OK)
 async def invalidate_cache(flow_slug: str):
     logger.info(f"Invalidating cache for flow_slug='{flow_slug}'")
-
+    
+    # Delete global and direct keys
     await cache.delete(f"theme:{flow_slug}:global")
     await cache.delete(f"theme:{flow_slug}")
-
+    
+    # Delete all application-specific keys matching the pattern using the underlying Valkey client
     if cache.redis:
         try:
             pattern = f"theme:{flow_slug}:*"
@@ -204,5 +248,5 @@ async def invalidate_cache(flow_slug: str):
                 logger.info(f"Successfully invalidated {len(keys)} cached keys matching '{pattern}' in Valkey")
         except Exception as e:
             logger.error(f"Error invalidating cache pattern for '{flow_slug}': {e}")
-
+            
     return {"status": "success", "message": f"Cache for flow '{flow_slug}' invalidated successfully."}
