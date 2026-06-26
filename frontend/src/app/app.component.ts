@@ -115,6 +115,12 @@ export class AppComponent implements OnInit {
       show_social_google: false,
       show_social_microsoft: false,
       show_social_gov_id: false,
+      show_forgot_password: true,
+      show_logos_panel: true,
+      show_password_toggle: true,
+      show_system_name: true,
+      show_system_subtitle: true,
+      show_field_labels: true,
       email_footer_text: null,
       email_template_type: 'integrated'
     };

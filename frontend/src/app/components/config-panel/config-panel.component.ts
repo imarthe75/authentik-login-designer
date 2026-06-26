@@ -8,11 +8,12 @@ import {
   Theme, SavePhase, EmailEventType, EmailBody,
   EMAIL_EVENT_TYPES, EMAIL_EVENT_LABELS, EMPTY_EMAIL_BODY
 } from '../../models/theme.model';
+import { RichTextEditorComponent } from '../rich-text-editor/rich-text-editor.component';
 
 @Component({
   selector: 'app-config-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, LucideAngularModule, RichTextEditorComponent],
   templateUrl: './config-panel.component.html'
 })
 export class ConfigPanelComponent {

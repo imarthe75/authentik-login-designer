@@ -52,7 +52,8 @@ DEFAULT_THEME = {
     "has_logo_bottom": False,
     "has_bg_image": False,
     "logo_top_text": None,
-    "logo_bottom_text": None
+    "logo_bottom_text": None,
+    "show_app_message": True
 }
 
 async def resolve_app_slug(app: Optional[str]) -> Optional[str]:
@@ -154,6 +155,17 @@ async def get_public_theme(
             "has_bg_image": bool(db_theme.bg_image_base64),
             "logo_top_text": db_theme.logo_top_text or None,
             "logo_bottom_text": db_theme.logo_bottom_text or None,
+            "allow_self_registration": db_theme.allow_self_registration,
+            "show_social_google": db_theme.show_social_google,
+            "show_social_microsoft": db_theme.show_social_microsoft,
+            "show_social_gov_id": db_theme.show_social_gov_id,
+            "show_forgot_password": db_theme.show_forgot_password,
+            "show_logos_panel": db_theme.show_logos_panel,
+            "show_password_toggle": db_theme.show_password_toggle,
+            "show_system_name": db_theme.show_system_name,
+            "show_system_subtitle": db_theme.show_system_subtitle,
+            "show_field_labels": db_theme.show_field_labels,
+            "show_app_message": db_theme.show_app_message,
             "is_custom": True,  # theme exists in DB
         }
     else:

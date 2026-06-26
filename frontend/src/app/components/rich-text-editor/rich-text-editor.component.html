@@ -1,0 +1,168 @@
+<!-- RichTextEditorComponent — TipTap vanilla editor for Angular -->
+<div class="border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-400 focus-within:border-blue-400">
+
+  <!-- ── Toolbar ──────────────────────────────────────────────────────────── -->
+  <div class="flex items-center gap-0.5 flex-wrap px-2 py-1.5 bg-gray-50 border-b border-gray-200">
+
+    <!-- Mode toggle -->
+    <div class="flex rounded overflow-hidden border border-gray-300 mr-1">
+      <button type="button" (click)="switchToVisual()"
+        [class]="mode() === 'visual'
+          ? 'px-2.5 py-1 text-xs font-medium bg-blue-600 text-white transition-colors'
+          : 'px-2.5 py-1 text-xs font-medium bg-white text-gray-600 hover:bg-gray-100 transition-colors'">
+        Diseño
+      </button>
+      <button type="button" (click)="switchToHtml()"
+        [class]="mode() === 'html'
+          ? 'px-2.5 py-1 text-xs font-medium bg-blue-600 text-white border-l border-gray-300 transition-colors'
+          : 'px-2.5 py-1 text-xs font-medium bg-white text-gray-600 border-l border-gray-300 hover:bg-gray-100 transition-colors'">
+        HTML
+      </button>
+    </div>
+
+    <!-- Visual mode toolbar (shown only in visual mode) -->
+    @if (mode() === 'visual') {
+      <div class="w-px h-5 bg-gray-200 mx-0.5 self-center"></div>
+
+      <!-- Text style -->
+      <button type="button" (click)="toggleBold()" [class]="isBold() ? 'btn-active' : 'btn-normal'" title="Negrita (Ctrl+B)">
+        <b class="text-sm leading-none">B</b>
+      </button>
+      <button type="button" (click)="toggleItalic()" [class]="isItalic() ? 'btn-active' : 'btn-normal'" title="Cursiva (Ctrl+I)">
+        <i class="text-sm leading-none" style="font-style:italic">I</i>
+      </button>
+      <button type="button" (click)="toggleUnderline()" [class]="isUnderline() ? 'btn-active' : 'btn-normal'" title="Subrayado">
+        <u class="text-sm leading-none">U</u>
+      </button>
+      <button type="button" (click)="toggleStrike()" [class]="isStrike() ? 'btn-active' : 'btn-normal'" title="Tachado">
+        <s class="text-sm leading-none">S</s>
+      </button>
+
+      <div class="w-px h-5 bg-gray-200 mx-0.5 self-center"></div>
+
+      <!-- Headings -->
+      <button type="button" (click)="toggleH1()" [class]="isH1() ? 'btn-active' : 'btn-normal'" title="Título 1">
+        <span class="text-xs font-bold leading-none">H1</span>
+      </button>
+      <button type="button" (click)="toggleH2()" [class]="isH2() ? 'btn-active' : 'btn-normal'" title="Título 2">
+        <span class="text-xs font-bold leading-none">H2</span>
+      </button>
+      <button type="button" (click)="setParagraph()" [class]="isParagraph() ? 'btn-active' : 'btn-normal'" title="Párrafo">
+        <span class="text-xs leading-none">¶</span>
+      </button>
+
+      <div class="w-px h-5 bg-gray-200 mx-0.5 self-center"></div>
+
+      <!-- Alignment -->
+      <button type="button" (click)="setAlignLeft()" [class]="isAlignLeft() ? 'btn-active' : 'btn-normal'" title="Alinear izquierda">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5">
+          <line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="10" y2="8"/><line x1="2" y1="12" x2="12" y2="12"/>
+        </svg>
+      </button>
+      <button type="button" (click)="setAlignCenter()" [class]="isAlignCenter() ? 'btn-active' : 'btn-normal'" title="Centrar">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5">
+          <line x1="2" y1="4" x2="14" y2="4"/><line x1="4" y1="8" x2="12" y2="8"/><line x1="3" y1="12" x2="13" y2="12"/>
+        </svg>
+      </button>
+      <button type="button" (click)="setAlignRight()" [class]="isAlignRight() ? 'btn-active' : 'btn-normal'" title="Alinear derecha">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5">
+          <line x1="2" y1="4" x2="14" y2="4"/><line x1="6" y1="8" x2="14" y2="8"/><line x1="4" y1="12" x2="14" y2="12"/>
+        </svg>
+      </button>
+
+      <div class="w-px h-5 bg-gray-200 mx-0.5 self-center"></div>
+
+      <!-- Lists -->
+      <button type="button" (click)="toggleBulletList()" [class]="isBulletList() ? 'btn-active' : 'btn-normal'" title="Lista con viñetas">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5">
+          <circle cx="3" cy="4" r="1" fill="currentColor" stroke="none"/>
+          <circle cx="3" cy="8" r="1" fill="currentColor" stroke="none"/>
+          <circle cx="3" cy="12" r="1" fill="currentColor" stroke="none"/>
+          <line x1="6" y1="4" x2="14" y2="4"/><line x1="6" y1="8" x2="14" y2="8"/><line x1="6" y1="12" x2="14" y2="12"/>
+        </svg>
+      </button>
+      <button type="button" (click)="toggleOrderedList()" [class]="isOrderedList() ? 'btn-active' : 'btn-normal'" title="Lista numerada">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5">
+          <text x="1.5" y="5" font-size="4" fill="currentColor" stroke="none" font-family="monospace">1.</text>
+          <text x="1.5" y="9" font-size="4" fill="currentColor" stroke="none" font-family="monospace">2.</text>
+          <text x="1.5" y="13" font-size="4" fill="currentColor" stroke="none" font-family="monospace">3.</text>
+          <line x1="6" y1="4" x2="14" y2="4"/><line x1="6" y1="8" x2="14" y2="8"/><line x1="6" y1="12" x2="14" y2="12"/>
+        </svg>
+      </button>
+
+      <div class="w-px h-5 bg-gray-200 mx-0.5 self-center"></div>
+
+      <!-- Link -->
+      <button type="button" (click)="setLink()" [class]="isLink() ? 'btn-active' : 'btn-normal'" title="Insertar enlace">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5">
+          <path d="M7 9a3 3 0 0 0 4.5.3l1.5-1.5a3 3 0 0 0-4.2-4.2L7.5 4.9"/>
+          <path d="M9 7a3 3 0 0 0-4.5-.3L3 8.2a3 3 0 0 0 4.2 4.2l1.3-1.3"/>
+        </svg>
+      </button>
+      @if (isLink()) {
+        <button type="button" (click)="unsetLink()" class="btn-normal" title="Quitar enlace">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5">
+            <path d="M7 9a3 3 0 0 0 4.5.3l1.5-1.5a3 3 0 0 0-4.2-4.2L7.5 4.9"/>
+            <path d="M9 7a3 3 0 0 0-4.5-.3L3 8.2a3 3 0 0 0 4.2 4.2l1.3-1.3"/>
+            <line x1="3" y1="3" x2="13" y2="13"/>
+          </svg>
+        </button>
+      }
+
+      <div class="w-px h-5 bg-gray-200 mx-0.5 self-center"></div>
+
+      <!-- Horizontal rule -->
+      <button type="button" (click)="setHR()" class="btn-normal" title="Línea horizontal">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5">
+          <line x1="2" y1="8" x2="14" y2="8"/>
+        </svg>
+      </button>
+
+      <div class="w-px h-5 bg-gray-200 mx-0.5 self-center"></div>
+
+      <!-- Text color -->
+      <div class="flex items-center gap-1 pl-0.5" title="Color del texto">
+        <span class="text-xs font-bold text-gray-500">A</span>
+        <input type="color" value="#000000" (change)="setColor($event)"
+          class="w-5 h-5 rounded cursor-pointer border border-gray-300 p-0"
+          title="Color del texto" />
+      </div>
+    }
+
+    <!-- HTML mode indicator -->
+    @if (mode() === 'html') {
+      <div class="flex items-center gap-1.5 ml-1">
+        <svg class="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5">
+          <polyline points="5,3 1,8 5,13"/><polyline points="11,3 15,8 11,13"/>
+        </svg>
+        <span class="text-xs text-gray-400 font-mono">código fuente</span>
+        <span class="text-xs text-gray-300 ml-1">
+          {{ htmlLineCount }} {{ htmlLineCount === 1 ? 'línea' : 'líneas' }}
+        </span>
+      </div>
+    }
+  </div>
+
+  <!-- ── Editor area (always in DOM so TipTap remains mounted) ─────────── -->
+  <div [hidden]="mode() !== 'visual'"
+       class="px-3 py-2 text-sm"
+       [style.minHeight]="minHeight"
+       style="max-height:340px; overflow-y:auto;"
+       (click)="focusEditor()">
+    <div #editorContainer class="rte-editor outline-none"></div>
+  </div>
+
+  <!-- ── HTML source area ───────────────────────────────────────────────── -->
+  <div [hidden]="mode() !== 'html'" class="bg-gray-950">
+    <textarea
+      [value]="htmlDraft()"
+      (input)="onHtmlInput($event)"
+      spellcheck="false"
+      autocomplete="off"
+      class="w-full px-3 py-2 text-xs font-mono bg-transparent text-green-300 resize-y focus:outline-none leading-relaxed"
+      [style.minHeight]="minHeight"
+      style="max-height:340px;"
+      placeholder="&lt;!-- Escribe HTML aquí... --&gt;">
+    </textarea>
+  </div>
+</div>

@@ -62,3 +62,11 @@ input[type="range"]::-webkit-slider-thumb {
 input[type="range"]::-webkit-slider-thumb:hover {
   transform: scale(1.2);
 }
+
+/* ── RichTextEditor toolbar button styles ─────────────────────── */
+.btn-normal {
+  @apply p-1.5 rounded text-sm transition-colors text-gray-600 hover:bg-gray-100 cursor-pointer;
+}
+.btn-active {
+  @apply p-1.5 rounded text-sm transition-colors bg-blue-100 text-blue-700 cursor-pointer;
+}
