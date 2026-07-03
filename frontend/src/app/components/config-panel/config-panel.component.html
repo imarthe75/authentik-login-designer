@@ -93,6 +93,37 @@
                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
 
+        @if (!theme.authentik_app_slug) {
+          <div class="pt-2 border-t border-gray-100">
+            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+              App por default (usuarios no-admin)
+            </label>
+            <p class="text-xs text-gray-500 mb-2">
+              A dónde se manda a un usuario sin permisos de admin que llega a la
+              pantalla "Mis aplicaciones" de Authentik sin una app específica en
+              mente. Config a nivel de todo el tenant, no por app.
+            </p>
+            <div class="flex gap-2">
+              <input type="url"
+                     [value]="defaultAppUrl()"
+                     (input)="defaultAppUrl.set($any($event.target).value); defaultAppUrlStatus.set(null);"
+                     placeholder="https://starter-frontend.casmart.internal/"
+                     class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <button type="button"
+                      (click)="saveDefaultAppUrl()"
+                      [disabled]="defaultAppUrlSaving()"
+                      class="px-3 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap">
+                {{ defaultAppUrlSaving() ? 'Guardando…' : 'Guardar' }}
+              </button>
+            </div>
+            @if (defaultAppUrlStatus()) {
+              <p class="text-xs mt-1.5 font-medium" [class.text-green-600]="defaultAppUrlStatus()!.ok" [class.text-red-600]="!defaultAppUrlStatus()!.ok">
+                {{ defaultAppUrlStatus()!.msg }}
+              </p>
+            }
+          </div>
+        }
+
         <div>
           <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
             Posición del Formulario
@@ -479,22 +510,12 @@
           <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Notificaciones por Correo</h3>
 
           <div class="space-y-4">
-            <!-- email_template_type toggle -->
-            <label class="flex items-start gap-3 cursor-pointer">
-              <div class="relative mt-0.5 shrink-0">
-                <input type="checkbox" class="sr-only"
-                       [checked]="theme.email_template_type === 'integrated'"
-                       (change)="onField('email_template_type', $any($event.target).checked ? 'integrated' : 'custom_per_event')" />
-                <div class="w-10 h-5 rounded-full transition-colors"
-                     [style.backgroundColor]="theme.email_template_type === 'integrated' ? '#4272A5' : '#d1d5db'"></div>
-                <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform"
-                     [style.transform]="theme.email_template_type === 'integrated' ? 'translateX(20px)' : 'translateX(0)'"></div>
-              </div>
-              <div>
-                <p class="text-sm font-medium text-gray-800">Heredar diseño del login en correos</p>
-                <p class="text-xs text-gray-500">Usa colores y logo del portal como base</p>
-              </div>
-            </label>
+            <!-- Nota: el toggle "Heredar diseño del login en correos" (email_template_type)
+                 se quitó — era decorativo, nunca se leía en el backend. Colores/logo del
+                 portal siempre se aplican a los correos, sin ajuste posible. -->
+            <p class="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+              Los correos siempre usan el color primario y el logo de este portal.
+            </p>
 
             <!-- email_footer_text -->
             <div>
@@ -510,99 +531,20 @@
               </textarea>
             </div>
           </div>
+        </section>
 
-          <!-- Event selector -->
-          <div class="mt-5">
-            <p class="text-xs font-semibold text-gray-700 mb-2">Evento</p>
-            <div class="flex flex-wrap gap-1.5">
-              @for (evt of EMAIL_EVENT_TYPES; track evt) {
-                <button type="button" (click)="activeEmailEvent.set(evt)"
-                        [class.border-blue-500]="activeEmailEvent() === evt"
-                        [class.bg-blue-50]="activeEmailEvent() === evt"
-                        [class.text-blue-700]="activeEmailEvent() === evt"
-                        [class.border-gray-300]="activeEmailEvent() !== evt"
-                        [class.bg-white]="activeEmailEvent() !== evt"
-                        [class.text-gray-600]="activeEmailEvent() !== evt"
-                        class="px-3 py-1.5 rounded-full text-xs font-medium border transition-colors">
-                  {{ EMAIL_EVENT_LABELS[evt] }}
-                </button>
-              }
+        <!-- El editor completo (split-pane: editor + preview + drawers) necesita
+             más ancho del que cabe en este sidebar de 380px — vive como vista de
+             nivel superior en app.component, no anidado aquí. -->
+        <section class="mt-2">
+          <button type="button" (click)="openEmailEditor.emit()"
+                  class="w-full flex items-center justify-between gap-2 px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors">
+            <div class="text-left">
+              <p class="text-sm font-semibold text-blue-900">📧 Abrir Vista Correo</p>
+              <p class="text-xs text-blue-700 mt-0.5">Editar contenido, ver preview en vivo y enviar pruebas</p>
             </div>
-          </div>
-
-          <!-- Email body editor -->
-          <div class="mt-4 border border-gray-200 rounded-xl overflow-hidden">
-            <div class="px-4 py-3 border-b border-gray-200 bg-gray-50">
-              <label class="block text-xs font-semibold text-gray-700 mb-1">
-                Asunto
-                <span class="ml-1 text-gray-400 font-normal">({{ getEmailBody(activeEmailEvent()).subject.length }}/200)</span>
-              </label>
-              <input type="text" maxlength="200"
-                     [value]="getEmailBody(activeEmailEvent()).subject"
-                     (input)="onEmailSubjectChange($any($event.target).value)"
-                     [placeholder]="'Asunto: ' + EMAIL_EVENT_LABELS[activeEmailEvent()]"
-                     class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-            <div class="px-4 py-3">
-              <label class="block text-xs font-semibold text-gray-700 mb-2">Cuerpo</label>
-              <app-rich-text-editor
-                [value]="getEmailBody(activeEmailEvent()).body_html"
-                (valueChange)="onEmailBodyChange($event)"
-                placeholder="Hola {{ user.username }}, ..."
-                minHeight="160px">
-              </app-rich-text-editor>
-            </div>
-            <!-- Variable guide -->
-            <div class="px-4 pb-4">
-              <p class="text-xs font-semibold text-gray-500 mb-2">Variables (clic para copiar)</p>
-              <div class="flex flex-wrap gap-1.5">
-                @for (v of VARIABLE_GUIDE; track v.var) {
-                  <button type="button" (click)="copyVar(v.var)" [title]="v.desc"
-                          [class.border-green-400]="copiedVar() === v.var"
-                          [class.bg-green-50]="copiedVar() === v.var"
-                          [class.text-green-700]="copiedVar() === v.var"
-                          [class.border-gray-300]="copiedVar() !== v.var"
-                          [class.bg-white]="copiedVar() !== v.var"
-                          [class.text-gray-600]="copiedVar() !== v.var"
-                          class="px-2 py-1 rounded text-xs font-mono border transition-colors">
-                    {{ copiedVar() === v.var ? '✓ copiado' : v.var }}
-                  </button>
-                }
-              </div>
-            </div>
-            <!-- Test Email Section -->
-            <div class="px-4 pb-4 pt-3 border-t border-gray-100 bg-gray-50/50">
-              <p class="text-xs font-semibold text-gray-600 mb-2">
-                Correo de prueba
-                <span class="ml-1.5 text-gray-400 font-normal">
-                  — {{ EMAIL_EVENT_LABELS[activeEmailEvent()] }}
-                </span>
-              </p>
-              <div class="flex gap-2">
-                <input
-                  type="email"
-                  [value]="testEmail()"
-                  (input)="testEmail.set($any($event.target).value); testStatus.set(null);"
-                  (keydown.enter)="handleSendTest()"
-                  placeholder="destinatario@ejemplo.com"
-                  class="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-sans"
-                />
-                <button
-                  type="button"
-                  (click)="handleSendTest()"
-                  [disabled]="testSending() || !testEmail().trim()"
-                  class="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap font-sans"
-                >
-                  {{ testSending() ? 'Enviando…' : '✉ Enviar prueba' }}
-                </button>
-              </div>
-              @if (testStatus()) {
-                <p class="text-xs mt-1.5 font-medium font-sans" [class.text-green-600]="testStatus()!.ok" [class.text-red-600]="!testStatus()!.ok">
-                  {{ testStatus()!.msg }}
-                </p>
-              }
-            </div>
-          </div>
+            <span class="text-blue-600 text-lg">→</span>
+          </button>
         </section>
       </div>
     }

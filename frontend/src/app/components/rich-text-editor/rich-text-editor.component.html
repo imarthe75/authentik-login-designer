@@ -24,6 +24,42 @@
     @if (mode() === 'visual') {
       <div class="w-px h-5 bg-gray-200 mx-0.5 self-center"></div>
 
+      <!-- Undo / Redo -->
+      <button type="button" (click)="undo()" [disabled]="!canUndo()" class="btn-normal disabled:opacity-30 disabled:cursor-not-allowed" title="Deshacer (Ctrl+Z)">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5">
+          <path d="M3 8h7a3 3 0 0 1 0 6H8"/><path d="M6 5 3 8l3 3"/>
+        </svg>
+      </button>
+      <button type="button" (click)="redo()" [disabled]="!canRedo()" class="btn-normal disabled:opacity-30 disabled:cursor-not-allowed" title="Rehacer (Ctrl+Y)">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5">
+          <path d="M13 8H6a3 3 0 0 0 0 6h2"/><path d="M10 5l3 3-3 3"/>
+        </svg>
+      </button>
+
+      <div class="w-px h-5 bg-gray-200 mx-0.5 self-center"></div>
+
+      <!-- Font family / size -->
+      <select (change)="setFontFamily($event)" class="px-2 py-1 text-xs border border-gray-300 rounded hover:border-gray-400 transition-colors cursor-pointer" title="Tipo de fuente">
+        <option value="">Fuente</option>
+        <option value="Arial, sans-serif">Arial</option>
+        <option value="'Courier New', monospace">Courier</option>
+        <option value="Georgia, serif">Georgia</option>
+        <option value="Verdana, sans-serif">Verdana</option>
+        <option value="'Times New Roman', serif">Times</option>
+        <option value="'Trebuchet MS', sans-serif">Trebuchet</option>
+      </select>
+      <select (change)="setFontSize($event)" class="px-2 py-1 text-xs border border-gray-300 rounded hover:border-gray-400 transition-colors cursor-pointer" title="Tamaño de fuente">
+        <option value="">Tamaño</option>
+        <option value="12px">12px</option>
+        <option value="14px">14px</option>
+        <option value="16px">16px</option>
+        <option value="18px">18px</option>
+        <option value="20px">20px</option>
+        <option value="24px">24px</option>
+        <option value="28px">28px</option>
+        <option value="32px">32px</option>
+      </select>
+
       <!-- Text style -->
       <button type="button" (click)="toggleBold()" [class]="isBold() ? 'btn-active' : 'btn-normal'" title="Negrita (Ctrl+B)">
         <b class="text-sm leading-none">B</b>
@@ -111,11 +147,68 @@
 
       <div class="w-px h-5 bg-gray-200 mx-0.5 self-center"></div>
 
+      <!-- Tabla e imagen -->
+      <button type="button" (click)="insertTable()" [class]="isTable() ? 'btn-active' : 'btn-normal'" title="Insertar tabla">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5">
+          <rect x="2" y="2" width="12" height="12" rx="1"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="8" y1="2" x2="8" y2="14"/>
+        </svg>
+      </button>
+      <button type="button" (click)="insertImage()" class="btn-normal" title="Insertar imagen (URL)">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5">
+          <rect x="2" y="2" width="12" height="12" rx="1"/><circle cx="5.5" cy="5.5" r="1"/><path d="M2 11l3.5-3.5L8 10l2.5-2.5L14 11"/>
+        </svg>
+      </button>
+      @if (isTable()) {
+        <button type="button" (click)="addRowAfter()" class="btn-normal" title="Agregar fila">
+          <span class="text-[10px] leading-none">+Fila</span>
+        </button>
+        <button type="button" (click)="addColumnAfter()" class="btn-normal" title="Agregar columna">
+          <span class="text-[10px] leading-none">+Col</span>
+        </button>
+        <button type="button" (click)="deleteRow()" class="btn-normal" title="Eliminar fila">
+          <span class="text-[10px] leading-none opacity-60">-Fila</span>
+        </button>
+        <button type="button" (click)="deleteColumn()" class="btn-normal" title="Eliminar columna">
+          <span class="text-[10px] leading-none opacity-60">-Col</span>
+        </button>
+        <button type="button" (click)="deleteTable()" class="btn-normal" title="Eliminar tabla">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5">
+            <path d="M3 4h10M6 4V3h4v1M4 4l.7 9h6.6l.7-9"/>
+          </svg>
+        </button>
+      }
+
+      <div class="w-px h-5 bg-gray-200 mx-0.5 self-center"></div>
+
+      <!-- Cita y código -->
+      <button type="button" (click)="toggleBlockquote()" [class]="isBlockquote() ? 'btn-active' : 'btn-normal'" title="Cita (Blockquote)">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5">
+          <path d="M4 4c-1.5 0-2.5 1-2.5 2.5S2.5 9 4 9M9 4c-1.5 0-2.5 1-2.5 2.5S7.5 9 9 9"/>
+        </svg>
+      </button>
+      <button type="button" (click)="toggleCodeBlock()" [class]="isCodeBlock() ? 'btn-active' : 'btn-normal'" title="Código">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5">
+          <polyline points="5,3 1,8 5,13"/><polyline points="11,3 15,8 11,13"/>
+        </svg>
+      </button>
+
+      <div class="w-px h-5 bg-gray-200 mx-0.5 self-center"></div>
+
       <!-- Horizontal rule -->
       <button type="button" (click)="setHR()" class="btn-normal" title="Línea horizontal">
         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5">
           <line x1="2" y1="8" x2="14" y2="8"/>
         </svg>
+      </button>
+
+      <div class="w-px h-5 bg-gray-200 mx-0.5 self-center"></div>
+
+      <!-- Superíndice / subíndice -->
+      <button type="button" (click)="toggleSuperscript()" [class]="isSuperscript() ? 'btn-active' : 'btn-normal'" title="Superíndice">
+        <span class="text-xs leading-none">x<sup>2</sup></span>
+      </button>
+      <button type="button" (click)="toggleSubscript()" [class]="isSubscript() ? 'btn-active' : 'btn-normal'" title="Subíndice">
+        <span class="text-xs leading-none">x<sub>2</sub></span>
       </button>
 
       <div class="w-px h-5 bg-gray-200 mx-0.5 self-center"></div>
@@ -127,6 +220,25 @@
           class="w-5 h-5 rounded cursor-pointer border border-gray-300 p-0"
           title="Color del texto" />
       </div>
+
+      <!-- Highlight / fondo -->
+      <div class="flex items-center gap-1 pl-0.5" title="Color de fondo (resaltado)">
+        <svg class="w-3.5 h-3.5 text-gray-500" fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5">
+          <path d="M3 13l1.5-1.5M9 3l4 4-6 6H3v-4l6-6z"/>
+        </svg>
+        <input type="color" value="#FFFF00" (change)="setHighlight($event)"
+          class="w-5 h-5 rounded cursor-pointer border border-gray-300 p-0"
+          title="Fondo" />
+      </div>
+
+      <div class="w-px h-5 bg-gray-200 mx-0.5 self-center"></div>
+
+      <!-- Limpiar formato -->
+      <button type="button" (click)="clearFormat()" class="btn-normal" title="Limpiar formato">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5">
+          <path d="M3 3l10 10M13 3 3 13"/>
+        </svg>
+      </button>
     }
 
     <!-- HTML mode indicator -->
@@ -148,7 +260,9 @@
        class="px-3 py-2 text-sm"
        [style.minHeight]="minHeight"
        style="max-height:340px; overflow-y:auto;"
-       (click)="focusEditor()">
+       (click)="focusEditor()"
+       (drop)="onEditorDrop($event)"
+       (dragover)="onDragOver($event)">
     <div #editorContainer class="rte-editor outline-none"></div>
   </div>
 
@@ -157,6 +271,8 @@
     <textarea
       [value]="htmlDraft()"
       (input)="onHtmlInput($event)"
+      (drop)="onHtmlDrop($event)"
+      (dragover)="onDragOver($event)"
       spellcheck="false"
       autocomplete="off"
       class="w-full px-3 py-2 text-xs font-mono bg-transparent text-green-300 resize-y focus:outline-none leading-relaxed"

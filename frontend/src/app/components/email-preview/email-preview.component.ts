@@ -1,10 +1,16 @@
 import { Component, Input, OnChanges, OnDestroy, SimpleChanges, ViewChild, ElementRef, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import DOMPurify from 'dompurify';
 import { ThemeApiService } from '../../services/theme-api.service';
 import { EmailEventType, EMAIL_EVENT_LABELS } from '../../models/theme.model';
 import { Subscription } from 'rxjs';
 
+// Sanitizado con DOMPurify — el HTML sin guardar aún no pasó por el render
+// real del backend, y este iframe no usa sandbox="" (necesita ejecutar su
+// propio <style>), así que el body_html en edición debe limpiarse antes de
+// insertarse (mismo criterio que EmailEditorSplit.tsx en React).
 function buildLiveHtml(bodyHtml: string): string {
+  const safeBody = DOMPurify.sanitize(bodyHtml || '', { ADD_ATTR: ['style', 'target'] });
   return `<!DOCTYPE html>
 <html lang="es"><head>
 <meta charset="utf-8">
@@ -27,7 +33,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;f
 <body>
 <div class="env">
   <div class="env-h">CASMARTS <span class="badge">VISTA PREVIA EN VIVO</span></div>
-  <div class="env-b">${bodyHtml || '<p style="color:#9ca3af;font-style:italic">Sin contenido aún…</p>'}</div>
+  <div class="env-b">${safeBody || '<p style="color:#9ca3af;font-style:italic">Sin contenido aún…</p>'}</div>
   <div class="env-f">noreply@casmarts.internal · Este es un correo automático</div>
 </div>
 </body></html>`;
@@ -37,13 +43,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;f
   selector: 'app-email-preview',
   standalone: true,
   imports: [CommonModule],
-  templateUrl: './email-preview.component.html'
+  templateUrl: './email-preview.component.html',
+  styles: [':host { display: block; width: 100%; height: 100%; }'],
 })
 export class EmailPreviewComponent implements OnChanges, OnDestroy {
   private readonly api = inject(ThemeApiService);
 
   @Input({ required: true }) flowSlug!: string;
   @Input({ required: true }) eventType!: EmailEventType;
+  @Input() appSlug?: string | null;
   @Input() refreshKey = 0;
   @Input() liveBodyHtml?: string;
 
@@ -60,7 +68,7 @@ export class EmailPreviewComponent implements OnChanges, OnDestroy {
   private liveTimer?: ReturnType<typeof setTimeout>;
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['flowSlug'] || changes['eventType'] || changes['refreshKey']) {
+    if (changes['flowSlug'] || changes['eventType'] || changes['appSlug'] || changes['refreshKey']) {
       this.loadPreview();
     }
 
@@ -85,7 +93,7 @@ export class EmailPreviewComponent implements OnChanges, OnDestroy {
     this.error.set(null);
     this.previewSub?.unsubscribe();
 
-    this.previewSub = this.api.getEmailPreview(this.flowSlug, this.eventType).subscribe({
+    this.previewSub = this.api.getEmailPreview(this.flowSlug, this.eventType, this.appSlug).subscribe({
       next: (html) => {
         const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
         this.subject.set(titleMatch?.[1]?.trim() ?? EMAIL_EVENT_LABELS[this.eventType]);

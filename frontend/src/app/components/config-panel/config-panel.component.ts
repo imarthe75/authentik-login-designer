@@ -1,22 +1,20 @@
-import { Component, Input, Output, EventEmitter, ViewChild, ElementRef, signal, inject } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ViewChild, ElementRef, signal, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
 import { ThemeApiService } from '../../services/theme-api.service';
 import { firstValueFrom } from 'rxjs';
 import {
-  Theme, SavePhase, EmailEventType, EmailBody,
-  EMAIL_EVENT_TYPES, EMAIL_EVENT_LABELS, EMPTY_EMAIL_BODY
+  Theme, SavePhase, EmailBody,
 } from '../../models/theme.model';
-import { RichTextEditorComponent } from '../rich-text-editor/rich-text-editor.component';
 
 @Component({
   selector: 'app-config-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule, RichTextEditorComponent],
+  imports: [CommonModule, FormsModule, LucideAngularModule],
   templateUrl: './config-panel.component.html'
 })
-export class ConfigPanelComponent {
+export class ConfigPanelComponent implements OnInit {
   private readonly api = inject(ThemeApiService);
 
   @Input({ required: true }) theme!: Theme;
@@ -30,6 +28,7 @@ export class ConfigPanelComponent {
   @Output() retryDeploy = new EventEmitter<void>();
   @Output() changeApp = new EventEmitter<string | null>();
   @Output() updateEmailBody = new EventEmitter<{ eventType: string; body: EmailBody }>();
+  @Output() openEmailEditor = new EventEmitter<void>();
 
   @ViewChild('logoTopInput') logoTopRef!: ElementRef<HTMLInputElement>;
   @ViewChild('logoBottomInput') logoBottomRef!: ElementRef<HTMLInputElement>;
@@ -54,23 +53,34 @@ export class ConfigPanelComponent {
   };
 
   activeTab = signal('general');
-  activeEmailEvent = signal<EmailEventType>('password_reset');
-  copiedVar = signal<string | null>(null);
 
-  testEmail = signal('');
-  testSending = signal(false);
-  testStatus = signal<{ ok: boolean; msg: string } | null>(null);
+  // Config a nivel tenant (no por tema/app) — a dónde se manda a un
+  // usuario no-admin sin app específica en mente (ver custom_authentik.js).
+  // Se carga una sola vez: es la misma para todo el tenant, no cambia al
+  // cambiar de app en el selector.
+  defaultAppUrl = signal('');
+  defaultAppUrlSaving = signal(false);
+  defaultAppUrlStatus = signal<{ ok: boolean; msg: string } | null>(null);
 
-  readonly EMAIL_EVENT_TYPES = EMAIL_EVENT_TYPES;
-  readonly EMAIL_EVENT_LABELS = EMAIL_EVENT_LABELS;
+  ngOnInit(): void {
+    this.api.getTenantSettings().subscribe({
+      next: (res) => this.defaultAppUrl.set(res.default_app_url ?? ''),
+      error: (err) => console.error('No se pudo cargar la config del tenant', err),
+    });
+  }
 
-  readonly VARIABLE_GUIDE = [
-    { var: '{{ user.username }}', desc: 'Nombre de usuario' },
-    { var: '{{ user.email }}', desc: 'Correo electrónico del usuario' },
-    { var: '{{ url }}', desc: 'Enlace de acción' },
-    { var: '{{ token }}', desc: 'Token de un solo uso' },
-    { var: '{{ tenant.name }}', desc: 'Nombre del tenant' },
-  ];
+  async saveDefaultAppUrl(): Promise<void> {
+    this.defaultAppUrlSaving.set(true);
+    this.defaultAppUrlStatus.set(null);
+    try {
+      await firstValueFrom(this.api.updateTenantSettings(this.defaultAppUrl().trim() || null));
+      this.defaultAppUrlStatus.set({ ok: true, msg: '✅ Guardado' });
+    } catch (err: any) {
+      this.defaultAppUrlStatus.set({ ok: false, msg: `❌ ${err?.error?.detail || err?.message || 'Error al guardar'}` });
+    } finally {
+      this.defaultAppUrlSaving.set(false);
+    }
+  }
 
   get isBusy(): boolean {
     return this.savePhase === 'saving' || this.savePhase === 'deploying';
@@ -119,26 +129,6 @@ export class ConfigPanelComponent {
     this.uploadFile.emit({ key, file });
   }
 
-  getEmailBody(eventType: EmailEventType): EmailBody {
-    return this.theme.email_bodies?.[eventType] ?? { ...EMPTY_EMAIL_BODY };
-  }
-
-  onEmailSubjectChange(value: string): void {
-    const evt = this.activeEmailEvent();
-    this.updateEmailBody.emit({ eventType: evt, body: { ...this.getEmailBody(evt), subject: value } });
-  }
-
-  onEmailBodyChange(value: string): void {
-    const evt = this.activeEmailEvent();
-    this.updateEmailBody.emit({ eventType: evt, body: { ...this.getEmailBody(evt), body_html: value } });
-  }
-
-  copyVar(v: string): void {
-    navigator.clipboard.writeText(v).catch(() => {});
-    this.copiedVar.set(v);
-    setTimeout(() => this.copiedVar.set(null), 1500);
-  }
-
   handlePdfChange(event: Event): void {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) return;
@@ -148,27 +138,5 @@ export class ConfigPanelComponent {
     reader.readAsDataURL(file);
     reader.onload = () => this.onField('privacy_pdf_url', reader.result as string);
     reader.onerror = () => alert('Error al cargar el archivo de privacidad PDF.');
-  }
-
-  async handleSendTest(): Promise<void> {
-    const email = this.testEmail().trim();
-    if (!email) return;
-    this.testSending.set(true);
-    this.testStatus.set(null);
-    try {
-      await firstValueFrom(
-        this.api.sendTestEmail(
-          this.theme.authentik_flow_slug,
-          this.activeEmailEvent(),
-          email,
-          this.theme.authentik_app_slug
-        )
-      );
-      this.testStatus.set({ ok: true, msg: `✅ Enviado a ${email}` });
-    } catch (err: any) {
-      this.testStatus.set({ ok: false, msg: `❌ ${err?.error?.detail || err?.message || 'Error al enviar'}` });
-    } finally {
-      this.testSending.set(false);
-    }
   }
 }

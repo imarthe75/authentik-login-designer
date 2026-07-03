@@ -1,83 +1,8 @@
-<!-- Toolbar for Email view -->
-@if (view() === 'email') {
-  <div class="relative w-full h-full overflow-hidden flex flex-col select-none bg-gray-100">
-    <div class="shrink-0 flex items-center gap-2 px-4 py-2 bg-white border-b border-gray-200 z-10">
-      <button
-        type="button"
-        (click)="setView('login')"
-        class="text-xs text-gray-500 hover:text-blue-600 border border-gray-300 rounded px-2.5 py-1 transition-colors"
-      >
-        ← Vista login
-      </button>
-      <span class="text-xs text-gray-400">|</span>
-      <span class="text-xs font-semibold text-gray-600 font-sans">Vista previa correo:</span>
-      <div class="flex gap-1 flex-wrap">
-        @for (evt of EMAIL_EVENT_TYPES; track evt) {
-          <button
-            type="button"
-            (click)="setEmailEvent(evt)"
-            [class.border-blue-500]="activeEmailEvent() === evt"
-            [class.bg-blue-50]="activeEmailEvent() === evt"
-            [class.text-blue-700]="activeEmailEvent() === evt"
-            [class.border-gray-300]="activeEmailEvent() !== evt"
-            [class.bg-white]="activeEmailEvent() !== evt"
-            [class.text-gray-600]="activeEmailEvent() !== evt"
-            class="px-2.5 py-1 rounded text-xs font-medium border transition-colors font-sans"
-          >
-            {{ EMAIL_EVENT_LABELS[evt] }}
-          </button>
-        }
-      </div>
-    </div>
-
-    <!-- Email preview content -->
-    <div class="flex-1 overflow-auto p-4 min-h-0">
-      <app-email-preview
-        [flowSlug]="theme.authentik_flow_slug"
-        [eventType]="activeEmailEvent()"
-        [refreshKey]="emailPreviewRefreshKey"
-        [liveBodyHtml]="theme.email_bodies?.[activeEmailEvent()]?.body_html"
-      ></app-email-preview>
-    </div>
-  </div>
-}
-
 <!-- Main Login View -->
-@if (view() === 'login') {
   <div class="relative w-full h-full overflow-hidden flex items-stretch select-none">
     <!-- Background -->
     <div class="absolute inset-0 z-0 animate-fade-in" [ngStyle]="bgStyle"></div>
     <div class="absolute inset-0 z-[1] bg-black/10 backdrop-brightness-95"></div>
-
-    <!-- View Switcher -->
-    <div class="absolute top-3 right-3 z-20 flex gap-1.5">
-      <button
-        type="button"
-        (click)="setView('login')"
-        [class.border-white/70]="view() === 'login'"
-        [class.bg-white/30]="view() === 'login'"
-        [class.backdrop-blur]="view() === 'login'"
-        [class.border-white/40]="view() !== 'login'"
-        [class.bg-white/10]="view() !== 'login'"
-        [class.text-white/70]="view() !== 'login'"
-        class="px-2.5 py-1 rounded text-xs font-medium border transition-all text-white hover:bg-white/20 font-sans"
-      >
-        Login
-      </button>
-      <button
-        type="button"
-        (click)="setView('email')"
-        [class.border-white/70]="view() === 'email'"
-        [class.bg-white/30]="view() === 'email'"
-        [class.backdrop-blur]="view() === 'email'"
-        [class.border-white/40]="view() !== 'email'"
-        [class.bg-white/10]="view() !== 'email'"
-        [class.text-white/70]="view() !== 'email'"
-        class="px-2.5 py-1 rounded text-xs font-medium border transition-all text-white hover:bg-white/20 font-sans"
-      >
-        Correo
-      </button>
-    </div>
 
     <!-- Main Card Container -->
     <div
@@ -267,7 +192,6 @@
       </div>
     </div>
   </div>
-}
 
 <!-- PDF Modal -->
 @if (showModal()) {

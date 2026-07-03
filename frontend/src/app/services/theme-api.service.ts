@@ -52,17 +52,69 @@ export class ThemeApiService {
     );
   }
 
-  sendTestEmail(flowSlug: string, eventType: string, toEmail: string, appSlug?: string | null): Observable<{ status: string; to: string; subject: string }> {
+  sendTestEmail(flowSlug: string, eventType: string, toEmail: string, appSlug?: string | null, displayName?: string | null): Observable<{ status: string; to: string; subject: string }> {
     return this.http.post<{ status: string; to: string; subject: string }>(
       `${this.base}/v1/themes/${flowSlug}/emails/test`,
-      { to_email: toEmail, event_type: eventType, app_slug: appSlug || null }
+      { to_email: toEmail, event_type: eventType, app_slug: appSlug || null, display_name: displayName || null }
     );
   }
 
-  getEmailPreview(flowSlug: string, eventType: string): Observable<string> {
+  /**
+   * A diferencia de sendTestEmail (render local + SMTP directo), dispara el
+   * mecanismo real de Authentik para el evento (EmailStage real, o un
+   * evento real que atraviesa el puente de webhooks).
+   */
+  sendTestEmailReal(flowSlug: string, eventType: string, username?: string | null): Observable<Record<string, unknown>> {
+    return this.http.post<Record<string, unknown>>(
+      `${this.base}/v1/themes/${flowSlug}/emails/test-real`,
+      { event_type: eventType, username: username || null }
+    );
+  }
+
+  getEmailPreview(flowSlug: string, eventType: string, appSlug?: string | null): Observable<string> {
+    let params = new HttpParams();
+    if (appSlug) params = params.set('app_slug', appSlug);
     return this.http.get(
       `${this.base}/v1/themes/${flowSlug}/emails/preview/${eventType}`,
-      { responseType: 'text' }
+      { params, responseType: 'text' }
+    );
+  }
+
+  /**
+   * Contenido por-defecto real del backend para un evento (extraído del
+   * .j2), usado cuando el tenant no personalizó ese correo — sin esto el
+   * editor se ve vacío mientras el preview sí muestra contenido real.
+   */
+  getDefaultEmailBody(flowSlug: string, eventType: string, appSlug?: string | null): Observable<{ subject: string; body_html: string }> {
+    let params = new HttpParams();
+    if (appSlug) params = params.set('app_slug', appSlug);
+    return this.http.get<{ subject: string; body_html: string }>(
+      `${this.base}/v1/themes/${flowSlug}/emails/default-body/${eventType}`,
+      { params }
+    );
+  }
+
+  /**
+   * Config a nivel tenant (no por tema/app) — hoy solo default_app_url,
+   * a dónde se manda a un usuario no-admin sin app específica en mente
+   * (ver custom_authentik.js). Se resuelve por el tenant del request
+   * (header X-Tenant-Domain inyectado por el gateway), no por flowSlug.
+   */
+  getTenantSettings(): Observable<{ default_app_url: string | null }> {
+    return this.http.get<{ default_app_url: string | null }>(`${this.base}/v1/tenant/settings`);
+  }
+
+  updateTenantSettings(defaultAppUrl: string | null): Observable<{ default_app_url: string | null }> {
+    return this.http.patch<{ default_app_url: string | null }>(
+      `${this.base}/v1/tenant/settings`,
+      { default_app_url: defaultAppUrl }
+    );
+  }
+
+  /** Catálogo real de variables (con fallback estático si falla — ver DEFAULT_VARIABLES en email-editor-split). */
+  getEmailTemplates(): Observable<{ variables: { variable: string; description: string }[]; event_types: string[] }> {
+    return this.http.get<{ variables: { variable: string; description: string }[]; event_types: string[] }>(
+      `${this.base}/v1/public/email-templates`
     );
   }
 }

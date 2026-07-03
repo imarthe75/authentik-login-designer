@@ -2,16 +2,17 @@ import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ThemeStateService } from './services/theme-state.service';
 import { ThemeApiService } from './services/theme-api.service';
-import { Theme } from './models/theme.model';
+import { Theme, EmailEventType } from './models/theme.model';
 import { ThemeSelectorComponent } from './components/theme-selector/theme-selector.component';
 import { LoginPreviewComponent } from './components/login-preview/login-preview.component';
 import { ConfigPanelComponent } from './components/config-panel/config-panel.component';
+import { EmailEditorSplitComponent } from './components/email-editor-split/email-editor-split.component';
 import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, ThemeSelectorComponent, LoginPreviewComponent, ConfigPanelComponent],
+  imports: [CommonModule, ThemeSelectorComponent, LoginPreviewComponent, ConfigPanelComponent, EmailEditorSplitComponent],
   templateUrl: './app.component.html'
 })
 export class AppComponent implements OnInit {
@@ -21,6 +22,13 @@ export class AppComponent implements OnInit {
   readonly themesList = signal<Theme[]>([]);
   readonly authentikApps = signal<{ slug: string; name: string }[]>([]);
   readonly loading = signal<boolean>(true);
+
+  // Vista Correo: editor de plantillas de email — necesita el ancho completo
+  // (split editor+preview con drawers), no cabe en el sidebar de 380px de
+  // app-config-panel, así que reemplaza TODO el <main> mientras está activa
+  // (mismo patrón que React: vista de nivel superior, no anidada).
+  readonly emailEditorOpen = signal(false);
+  readonly emailActiveEvent = signal<EmailEventType>('password_reset');
 
   async ngOnInit(): Promise<void> {
     await Promise.all([this.fetchThemes(), this.fetchApps()]);

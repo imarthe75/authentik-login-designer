@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../node_modules/@tiptap/extension-table-header/dist/index.js"],
+  "sourcesContent": ["// src/index.ts\nimport { TableHeader } from \"@tiptap/extension-table\";\nimport { TableHeader as TableHeader2 } from \"@tiptap/extension-table\";\nvar index_default = TableHeader;\nexport {\n  TableHeader2 as TableHeader,\n  index_default as default\n};\n"],
+  "mappings": ";;;;;;;AAGA,IAAI,gBAAgB;",
+  "names": []
+}
