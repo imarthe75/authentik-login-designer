@@ -12,6 +12,12 @@ services:
       CORS_ORIGINS: http://localhost:3000,https://auth.casmart.internal,https://logindesigner.casmart.internal,http://localhost:80
       ADMIN_API_KEY: casmarts_admin_super_secret_key_123
       PUBLIC_API_BASE_URL: https://auth.casmart.internal
+      # Misma instancia de Authentik que authentik-login-manager — solo para
+      # el editor de política de contraseña. Token real vía .env (gitignored),
+      # nunca hardcodeado aquí (a diferencia de ADMIN_API_KEY arriba, que ya
+      # era una práctica preexistente y no se tocó en este cambio).
+      AUTHENTIK_HOST: http://casmarts-core-authentik-server:9000
+      AUTHENTIK_API_TOKEN: ${AUTHENTIK_API_TOKEN}
     ports:
       - "8000:8000"
     restart: always

@@ -117,4 +117,37 @@ export class ThemeApiService {
       `${this.base}/v1/public/email-templates`
     );
   }
+
+  /**
+   * Resuelve el tenant actual por hostname (header X-Tenant-Domain), igual
+   * que el manager (React) en TenantContext.tsx. NOTA: el backend de este
+   * designer (authentik-login-designer/backend) NO tiene montado un router
+   * /api/v1/tenant/* — a diferencia del manager, que sí lo tiene en
+   * app/routers/admin.py (tenant_router). Este método reproduce el mismo
+   * contrato HTTP que React consume, pero hoy resolverá en 404 contra este
+   * backend hasta que se porte el endpoint correspondiente (ver
+   * TenantStateService, que ya asume esto y cae a un tenant por defecto).
+   */
+  resolveTenant(hostname: string): Observable<{
+    tenant_id: string; tenant_name: string; domain_pattern: string;
+    primary_color: string; secondary_color: string;
+  }> {
+    return this.http.get<{
+      tenant_id: string; tenant_name: string; domain_pattern: string;
+      primary_color: string; secondary_color: string;
+    }>(`${this.base}/v1/tenant/resolve`, {
+      headers: { 'X-Tenant-Domain': hostname }
+    });
+  }
+
+  /** Lista de tenants disponibles (ver nota en resolveTenant sobre disponibilidad del backend). */
+  getTenants(): Observable<{
+    tenant_id: string; tenant_name: string; domain_pattern: string;
+    primary_color: string; secondary_color: string;
+  }[]> {
+    return this.http.get<{
+      tenant_id: string; tenant_name: string; domain_pattern: string;
+      primary_color: string; secondary_color: string;
+    }[]>(`${this.base}/v1/tenant/list`);
+  }
 }

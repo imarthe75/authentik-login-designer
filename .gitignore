@@ -13,6 +13,16 @@ build/
 .env
 .env.local
 .env.*.local
+*.key
+*.pem
+*.crt
+secrets/
+creds/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
 
 # Logs
 *.log

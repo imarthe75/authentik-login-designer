@@ -22,6 +22,9 @@ export class ConfigPanelComponent implements OnInit {
   @Input({ required: true }) savePhase: SavePhase = 'idle';
   @Input({ required: true }) deployError: string | null = null;
   @Input({ required: true }) authentikApps: { slug: string; name: string }[] = [];
+  // El listado de aplicaciones no debe mostrarse hasta elegir un tenant
+  // (ver app.component.ts: fetchApps() se difiere hasta handleSelectTenant).
+  @Input() selectedTenantId: string | null = null;
   @Output() updateField = new EventEmitter<{ key: keyof Theme; value: any }>();
   @Output() uploadFile = new EventEmitter<{ key: 'logo_top_base64'|'logo_bottom_base64'|'bg_image_base64'; file: File }>();
   @Output() save = new EventEmitter<void>();
@@ -88,6 +91,53 @@ export class ConfigPanelComponent implements OnInit {
 
   onField<K extends keyof Theme>(key: K, value: Theme[K]): void {
     this.updateField.emit({ key, value });
+  }
+
+  // ── Custom messages / traducciones UI de Authentik ──────────────────────
+  // Igual que en el manager (React): un mapa frase-original -> traducción,
+  // con helpers de mensajes comunes predefinidos + editor de lista libre.
+  newMessageKey = signal('');
+  newMessageValue = signal('');
+
+  get customMessages(): Record<string, string> {
+    return this.theme.custom_messages || {};
+  }
+
+  getCustomMessage(key: string): string {
+    return this.customMessages[key] || '';
+  }
+
+  updateCustomMessage(original: string, translation: string): void {
+    const updated = { ...this.customMessages, [original]: translation };
+    this.onField('custom_messages', updated);
+  }
+
+  removeCustomMessage(original: string): void {
+    const updated = { ...this.customMessages };
+    delete updated[original];
+    this.onField('custom_messages', updated);
+  }
+
+  addCustomMessage(): void {
+    const key = this.newMessageKey().trim();
+    if (!key) return;
+    // Lowercase key: la búsqueda de shadow-intercept en Authentik también se lowercasea
+    const formattedKey = key.toLowerCase().replace(/\s+/g, ' ');
+    this.updateCustomMessage(formattedKey, this.newMessageValue().trim());
+    this.newMessageKey.set('');
+    this.newMessageValue.set('');
+  }
+
+  readonly PREDEFINED_MESSAGE_KEYS = [
+    'forgot your username or password?',
+    'enter the email address or username associated with your account.',
+    'enter your username or email address.',
+  ];
+
+  get otherCustomMessageKeys(): string[] {
+    return Object.keys(this.customMessages).filter(
+      k => !this.PREDEFINED_MESSAGE_KEYS.includes(k)
+    );
   }
 
   onSave(): void {

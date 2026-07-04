@@ -53,7 +53,8 @@ DEFAULT_THEME = {
     "has_bg_image": False,
     "logo_top_text": None,
     "logo_bottom_text": None,
-    "show_app_message": True
+    "show_app_message": True,
+    "custom_messages": {}
 }
 
 async def resolve_app_slug(app: Optional[str]) -> Optional[str]:
@@ -166,6 +167,7 @@ async def get_public_theme(
             "show_system_subtitle": db_theme.show_system_subtitle,
             "show_field_labels": db_theme.show_field_labels,
             "show_app_message": db_theme.show_app_message,
+            "custom_messages": db_theme.custom_messages or {},
             "is_custom": True,  # theme exists in DB
         }
     else:
@@ -224,23 +226,32 @@ async def get_theme_image(
         logger.warning(f"Image for field '{field}' is not set in database for theme ID {db_theme.id}")
         raise HTTPException(status_code=404, detail=f"Image for field '{field}' is not set.")
 
+    # Solo rasters seguros — se excluye deliberadamente image/svg+xml, que puede
+    # contener <script> embebido y habilitar XSS al servirse inline.
+    ALLOWED_IMAGE_TYPES = {"image/png", "image/jpeg", "image/gif", "image/webp", "image/x-icon"}
+
     try:
-        # Extract base64 and MIME type
         pattern = r"^data:(image/[a-zA-Z0-9\+\-\.]+);base64,(.+)$"
         match = re.match(pattern, base64_str.strip())
-        if match:
-            content_type = match.group(1)
-            raw_b64 = match.group(2)
-        else:
-            content_type = "image/png"
-            raw_b64 = base64_str
+        if not match:
+            # No adivinar el tipo de datos no reconocidos: podría no ser una imagen.
+            logger.error(f"Malformed base64 data URI for field '{field}' on theme {db_theme.id}")
+            raise HTTPException(status_code=422, detail="Stored image data is not a valid data URI.")
 
-        image_data = base64.b64decode(raw_b64)
+        content_type = match.group(1).lower()
+        if content_type not in ALLOWED_IMAGE_TYPES:
+            logger.error(f"Rejected disallowed image MIME type '{content_type}' for field '{field}'")
+            raise HTTPException(status_code=422, detail=f"Unsupported image type: {content_type}")
+
+        raw_b64 = match.group(2)
+        image_data = base64.b64decode(raw_b64, validate=True)
         logger.info(f"Successfully decoded and serving {field} image ({len(image_data)} bytes, {content_type})")
         return Response(content=image_data, media_type=content_type)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error decoding image for field '{field}': {e}")
-        raise HTTPException(status_code=500, detail=f"Error decoding image: {str(e)}")
+        raise HTTPException(status_code=422, detail="Error decoding stored image data.")
 
 @router.post("/theme/invalidate-cache/{flow_slug}", status_code=status.HTTP_200_OK)
 async def invalidate_cache(flow_slug: str):

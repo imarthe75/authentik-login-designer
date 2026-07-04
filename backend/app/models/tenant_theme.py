@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Float, Integer, Boolean, DateTime, Text, func
+from sqlalchemy import String, Float, Integer, Boolean, DateTime, Text, JSON, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
@@ -10,6 +10,14 @@ class TenantTheme(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    # Columna NOT NULL sin default a nivel DB (FK a `tenants`, agregada por la
+    # migración 011_add_tenants del backend manager — comparten la misma tabla
+    # física en la misma base de datos). Este backend es single-tenant por
+    # diseño, así que se rellena con settings.DEFAULT_TENANT_ID al crear (ver
+    # routers/admin.py:upsert_theme) en vez de resolverse dinámicamente.
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
     )
     authentik_flow_slug: Mapped[str] = mapped_column(
         String(100), index=True, nullable=False
@@ -139,6 +147,9 @@ class TenantTheme(Base):
     )
     email_template_type: Mapped[str] = mapped_column(
         String(20), server_default='integrated', nullable=False
+    )
+    custom_messages: Mapped[dict] = mapped_column(
+        JSON, nullable=False, server_default='{}'
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False

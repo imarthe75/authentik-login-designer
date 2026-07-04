@@ -42,14 +42,21 @@
           <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
             Aplicación
           </label>
-          <select [value]="theme.authentik_app_slug || ''"
-                  (change)="onChangeApp($any($event.target).value || null)"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option [ngValue]="null">Global (Todas las aplicaciones)</option>
-            @for (app of authentikApps; track app.slug) {
-              <option [ngValue]="app.slug">{{ app.name }}</option>
-            }
-          </select>
+          @if (selectedTenantId) {
+            <select [value]="theme.authentik_app_slug || ''"
+                    (change)="onChangeApp($any($event.target).value || null)"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">Global (Todas las aplicaciones)</option>
+              @for (app of authentikApps; track app.slug) {
+                <option [value]="app.slug">{{ app.name }}</option>
+              }
+            </select>
+          } @else {
+            <select disabled
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-100 text-gray-400 cursor-not-allowed">
+              <option>Selecciona un tenant primero</option>
+            </select>
+          }
         </div>
 
         <div>
@@ -415,6 +422,23 @@
               </div>
             </label>
 
+            <!-- show_app_message -->
+            <label class="flex items-start gap-3 cursor-pointer">
+              <div class="relative mt-0.5 shrink-0">
+                <input type="checkbox" class="sr-only"
+                       [checked]="theme.show_app_message"
+                       (change)="onField('show_app_message', $any($event.target).checked)" />
+                <div class="w-10 h-5 rounded-full transition-colors"
+                     [style.backgroundColor]="theme.show_app_message ? '#4272A5' : '#d1d5db'"></div>
+                <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform"
+                     [style.transform]="theme.show_app_message ? 'translateX(20px)' : 'translateX(0)'"></div>
+              </div>
+              <div>
+                <p class="text-sm font-medium text-gray-800">Mostrar nombre de app en consentimiento</p>
+                <p class="text-xs text-gray-500">Muestra u oculta el nombre de la aplicación en la pantalla de consentimiento de Authentik</p>
+              </div>
+            </label>
+
           </div>
         </section>
 
@@ -501,6 +525,98 @@
                   <span class="text-sm font-medium text-gray-800">{{ provider.label }}</span>
                 </label>
               }
+            </div>
+          </div>
+        </section>
+
+        <!-- Custom messages / translations -->
+        <section class="space-y-4">
+          <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Mensajes y Traducciones</h3>
+          <p class="text-xs text-gray-500 leading-relaxed">
+            Personaliza o traduce cualquier texto en la interfaz de Authentik. Ingresa la frase original en inglés y tu texto personalizado en español.
+          </p>
+
+          <!-- Predefined helpers -->
+          <div class="bg-white border border-gray-200 rounded-xl p-3.5 space-y-3 shadow-sm">
+            <span class="text-[10px] font-bold text-blue-600 uppercase">Mensajes comunes</span>
+
+            <div class="space-y-3.5">
+              <div>
+                <label class="block text-[10px] font-semibold text-gray-500 mb-1">
+                  "Forgot your username or password?"
+                </label>
+                <input type="text"
+                       placeholder="Ej. ¿Olvidaste tu nombre de usuario o contraseña?"
+                       [value]="getCustomMessage('forgot your username or password?')"
+                       (input)="updateCustomMessage('forgot your username or password?', $any($event.target).value)"
+                       class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+
+              <div>
+                <label class="block text-[10px] font-semibold text-gray-500 mb-1">
+                  "Enter the email address or username associated with your account."
+                </label>
+                <input type="text"
+                       placeholder="Ej. Introduzca la dirección de correo electrónico o nombre de usuario asociado con su cuenta."
+                       [value]="getCustomMessage('enter the email address or username associated with your account.')"
+                       (input)="updateCustomMessage('enter the email address or username associated with your account.', $any($event.target).value)"
+                       class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+
+              <div>
+                <label class="block text-[10px] font-semibold text-gray-500 mb-1">
+                  "Enter your username or email address."
+                </label>
+                <input type="text"
+                       placeholder="Ej. Introduzca su nombre de usuario o correo electrónico."
+                       [value]="getCustomMessage('enter your username or email address.')"
+                       (input)="updateCustomMessage('enter your username or email address.', $any($event.target).value)"
+                       class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Arbitrary list editor -->
+          <div class="bg-white border border-gray-200 rounded-xl p-3.5 space-y-3.5 shadow-sm">
+            <span class="text-[10px] font-bold text-blue-600 uppercase">Otras traducciones/mensajes</span>
+
+            <div class="space-y-2 max-h-48 overflow-y-auto pr-1">
+              @for (original of otherCustomMessageKeys; track original) {
+                <div class="border border-gray-200 rounded-lg p-2 bg-gray-50 flex flex-col gap-1.5">
+                  <div class="flex justify-between items-start gap-2">
+                    <span class="text-[9px] font-bold text-gray-400 break-all select-all">Original: "{{ original }}"</span>
+                    <button type="button"
+                            (click)="removeCustomMessage(original)"
+                            class="text-red-500 hover:text-red-700 text-[10px] font-bold shrink-0">
+                      Quitar
+                    </button>
+                  </div>
+                  <input type="text"
+                         [value]="getCustomMessage(original)"
+                         (input)="updateCustomMessage(original, $any($event.target).value)"
+                         class="w-full px-2 py-1 border border-gray-300 rounded text-[10px] focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+              }
+            </div>
+
+            <!-- Add new entry form -->
+            <div class="border-t border-dashed border-gray-200 pt-3 space-y-2">
+              <label class="block text-[10px] font-bold text-gray-500">Agregar frase personalizada</label>
+              <input type="text"
+                     placeholder="Frase original en inglés (ej: Username)"
+                     [ngModel]="newMessageKey()"
+                     (ngModelChange)="newMessageKey.set($event)"
+                     class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <input type="text"
+                     placeholder="Traducción en español (ej: Nombre de usuario)"
+                     [ngModel]="newMessageValue()"
+                     (ngModelChange)="newMessageValue.set($event)"
+                     class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <button type="button"
+                      (click)="addCustomMessage()"
+                      class="w-full py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold rounded-lg transition-colors">
+                + Agregar traducción
+              </button>
             </div>
           </div>
         </section>

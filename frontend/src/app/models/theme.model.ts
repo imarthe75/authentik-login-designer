@@ -59,8 +59,10 @@ export interface Theme {
   show_system_name: boolean;
   show_system_subtitle: boolean;
   show_field_labels: boolean;
+  show_app_message: boolean;
   email_footer_text: string | null;
   email_template_type: EmailTemplateType;
+  custom_messages?: Record<string, string> | null;
   email_bodies?: EmailBodies;
   created_at?: string;
   updated_at?: string;

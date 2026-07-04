@@ -2,26 +2,37 @@ import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ThemeStateService } from './services/theme-state.service';
 import { ThemeApiService } from './services/theme-api.service';
+import { TenantStateService } from './services/tenant-state.service';
 import { Theme, EmailEventType } from './models/theme.model';
 import { ThemeSelectorComponent } from './components/theme-selector/theme-selector.component';
 import { LoginPreviewComponent } from './components/login-preview/login-preview.component';
 import { ConfigPanelComponent } from './components/config-panel/config-panel.component';
 import { EmailEditorSplitComponent } from './components/email-editor-split/email-editor-split.component';
+import { TenantSelectorComponent } from './components/tenant-selector/tenant-selector.component';
+import { PasswordPolicyPanelComponent } from './components/password-policy-panel/password-policy-panel.component';
 import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, ThemeSelectorComponent, LoginPreviewComponent, ConfigPanelComponent, EmailEditorSplitComponent],
+  imports: [
+    CommonModule, ThemeSelectorComponent, LoginPreviewComponent, ConfigPanelComponent,
+    EmailEditorSplitComponent, TenantSelectorComponent, PasswordPolicyPanelComponent
+  ],
   templateUrl: './app.component.html'
 })
 export class AppComponent implements OnInit {
   protected readonly state = inject(ThemeStateService);
   private readonly api = inject(ThemeApiService);
+  protected readonly tenantState = inject(TenantStateService);
 
   readonly themesList = signal<Theme[]>([]);
   readonly authentikApps = signal<{ slug: string; name: string }[]>([]);
   readonly loading = signal<boolean>(true);
+
+  // Multi-tenancy: id del tenant seleccionado en el selector del header
+  // (puerto de selectedTenantId/onSelectTenant en App.tsx del manager).
+  readonly selectedTenantId = signal<string | null>(null);
 
   // Vista Correo: editor de plantillas de email — necesita el ancho completo
   // (split editor+preview con drawers), no cabe en el sidebar de 380px de
@@ -30,8 +41,24 @@ export class AppComponent implements OnInit {
   readonly emailEditorOpen = signal(false);
   readonly emailActiveEvent = signal<EmailEventType>('password_reset');
 
+  // Política de Contraseña: configuración GLOBAL de Authentik (una sola
+  // PasswordPolicy real, no una por tenant) — a diferencia de todo lo demás
+  // en este componente, es alcanzable SIN seleccionar un tenant primero.
+  readonly passwordPolicyOpen = signal(false);
+
   async ngOnInit(): Promise<void> {
-    await Promise.all([this.fetchThemes(), this.fetchApps()]);
+    // Nada (temas, aplicaciones, panel principal) debe activarse hasta que
+    // se seleccione un tenant explícitamente — solo se resuelve el tenant
+    // para mostrarlo en el header/selector, pero no se cargan temas ni apps
+    // todavía (ver handleSelectTenant).
+    this.loading.set(false);
+    await this.tenantState.resolveTenant();
+  }
+
+  handleSelectTenant(event: { tenantId: string; tenantName: string }): void {
+    this.selectedTenantId.set(event.tenantId);
+    this.fetchApps();
+    this.fetchThemes();
   }
 
   private async fetchApps(): Promise<void> {
@@ -129,8 +156,10 @@ export class AppComponent implements OnInit {
       show_system_name: true,
       show_system_subtitle: true,
       show_field_labels: true,
+      show_app_message: true,
       email_footer_text: null,
-      email_template_type: 'integrated'
+      email_template_type: 'integrated',
+      custom_messages: {}
     };
   }
 }

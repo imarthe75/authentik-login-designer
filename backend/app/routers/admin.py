@@ -1,5 +1,6 @@
 import logging
 import re
+import secrets
 import ssl
 import smtplib
 import base64
@@ -10,7 +11,7 @@ from typing import List, Optional, Dict
 import uuid
 from pathlib import Path
 from types import SimpleNamespace
-from fastapi import APIRouter, Depends, Header, HTTPException, status, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, status, Query, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, field_validator
 from jinja2 import Environment, FileSystemLoader
@@ -38,12 +39,53 @@ authentik_engine = create_async_engine(
 )
 
 
-async def verify_admin_key(x_admin_key: str = Header(..., alias="X-Admin-Key")):
-    if x_admin_key != settings.ADMIN_API_KEY:
+ADMIN_KEY_RATE_LIMIT = 20       # intentos permitidos
+ADMIN_KEY_RATE_WINDOW = 300     # por ventana de 5 minutos, por IP
+
+
+def _is_trusted_proxy_peer(request: Request) -> bool:
+    """Mismo check que authentik-login-manager: solo se confía en X-Real-IP
+    si la conexión TCP inmediata viene del gateway (evita que cualquier
+    contenedor en la red Docker compartida spoofee la IP de origen)."""
+    if not request.client:
+        return False
+    try:
+        import socket
+        trusted_ip = socket.gethostbyname("casmarts-core-gateway")
+    except socket.gaierror:
+        return True
+    return request.client.host == trusted_ip
+
+
+async def verify_admin_key(request: Request, x_admin_key: str = Header(..., alias="X-Admin-Key")):
+    # Ver nota en authentik-login-manager/backend/app/routers/admin.py:
+    # request.client.host es siempre la IP del gateway, no la del navegador
+    # real — sin esto, el rate limit se comparte entre todos los usuarios.
+    client_ip = request.client.host if request.client else "unknown"
+    if _is_trusted_proxy_peer(request):
+        client_ip = request.headers.get("X-Real-IP", client_ip)
+
+    # Comparación constant-time: evita filtrar la clave por diferencias de tiempo.
+    if secrets.compare_digest(x_admin_key, settings.ADMIN_API_KEY):
+        return  # clave correcta: no consume el cupo de fuerza bruta
+
+    # Solo los INTENTOS FALLIDOS cuentan para el límite (ver nota extendida
+    # en authentik-login-manager) — antes se incrementaba en cada request,
+    # y un solo admin agotaba el cupo con uso normal.
+    rate_key = f"ratelimit:admin_key:{client_ip}"
+    attempts = await cache.incr_with_ttl(rate_key, ADMIN_KEY_RATE_WINDOW)
+    if attempts is not None and attempts > ADMIN_KEY_RATE_LIMIT:
+        log.warning("Rate limit exceeded for X-Admin-Key from IP %s (%s attempts fallidos)", client_ip, attempts)
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid administrative credentials."
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many authentication attempts. Try again later."
         )
+
+    log.warning("Invalid X-Admin-Key attempt from IP %s", client_ip)
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid administrative credentials."
+    )
 
 
 # ── helpers ─────────────────────────────────────────────────────────────────
@@ -144,7 +186,7 @@ async def upsert_theme(theme_in: ThemeCreate, db: AsyncSession = Depends(get_db)
         db.add(existing_theme)
         db_theme = existing_theme
     else:
-        db_theme = TenantTheme(**theme_in.model_dump())
+        db_theme = TenantTheme(tenant_id=settings.DEFAULT_TENANT_ID, **theme_in.model_dump())
         db.add(db_theme)
 
     await db.flush()
@@ -282,6 +324,65 @@ async def preview_email(
     return HTMLResponse(content=html)
 
 
+@router.get("/{flow_slug}/emails/default-body/{event_type}", dependencies=[Depends(verify_admin_key)])
+async def get_default_email_body(
+    flow_slug: str,
+    event_type: str,
+    app_slug: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Devuelve el asunto y cuerpo HTML por defecto (definidos en el .j2 del evento)
+    ya renderizados — para precargar el editor cuando el tenant aún no ha
+    personalizado ese evento. Las variables {{ }} se dejan literales a propósito
+    (se sustituyen en preview/envío), solo se resuelven las [[ ]] de Jinja real.
+    """
+    if event_type not in EMAIL_EVENT_TYPES:
+        raise HTTPException(status_code=422, detail=f"Invalid event_type. Must be one of: {sorted(EMAIL_EVENT_TYPES)}")
+
+    theme = None
+    if app_slug:
+        result = await db.execute(select(TenantTheme).where(
+            TenantTheme.authentik_flow_slug == flow_slug,
+            TenantTheme.authentik_app_slug == app_slug
+        ))
+        theme = result.scalar_one_or_none()
+    if theme is None:
+        result = await db.execute(select(TenantTheme).where(
+            TenantTheme.authentik_flow_slug == flow_slug,
+            TenantTheme.authentik_app_slug.is_(None)
+        ))
+        theme = result.scalar_one_or_none()
+    if not theme:
+        raise HTTPException(status_code=404, detail=f"Theme not found for flow '{flow_slug}'.")
+
+    tenant_name = _strip_html_tags(theme.system_name) or theme.display_name or 'CASMARTS'
+
+    env = _build_email_jinja2_env()
+    source, _, _ = env.loader.get_source(env, f'{event_type}.html.j2')
+
+    # A diferencia del manager (bloques `{% set body_html %}...{% endset %}`),
+    # las plantillas de este backend usan asignación en una sola línea:
+    # `[% set body_html = body_html or '<html...>' + (tenant_name or '...') + '...' %]`
+    # — se captura la expresión Jinja completa tras el `or` (puede incluir
+    # concatenación con `+`), no solo el primer literal entre comillas.
+    subject_match = re.search(r"\[%\s*set\s+subject\s*=\s*subject\s+or\s+(.+?)\s*%\]", source, re.S)
+    subject_expr = subject_match.group(1) if subject_match else "''"
+
+    body_match = re.search(r"\[%\s*set\s+body_html\s*=\s*body_html\s+or\s+(.+?)\s*%\]", source, re.S)
+    body_expr = body_match.group(1) if body_match else "''"
+
+    # Evaluar la expresión capturada con el mismo delimitador [[ ]] del resto
+    # del sistema — así los {{ }} embebidos en el HTML (variables Authentik
+    # como {{ user.username }}) se dejan literales a propósito, y solo se
+    # resuelve [[ tenant_name ]] dentro de la expresión.
+    frag_env = Environment(variable_start_string='[[', variable_end_string=']]', autoescape=False)
+    default_subject = frag_env.from_string(f'[[ {subject_expr} ]]').render(tenant_name=tenant_name).strip()
+    default_body = frag_env.from_string(f'[[ {body_expr} ]]').render(tenant_name=tenant_name).strip()
+
+    return {"subject": default_subject, "body_html": default_body}
+
+
 class TestEmailRequest(BaseModel):
     to_email: str
     event_type: str
@@ -303,9 +404,20 @@ def _b64_to_bytes(data_url: str) -> tuple[bytes, str]:
     return b'', 'image/png'
 
 
+def _strip_header_injection(value: str) -> str:
+    """Elimina CR/LF y caracteres de control para prevenir inyección de
+    cabeceras SMTP (CWE-93) vía subject/to_email construidos a partir de
+    datos que, aunque validados con regex, pueden originarse en HTML
+    editado por el usuario (ej. <title> del cuerpo del correo)."""
+    return re.sub(r'[\r\n\x00-\x08\x0b\x0c\x0e-\x1f]', '', value or '').strip()
+
+
 def _send_smtp(to_email: str, subject: str, html: str, logo_bytes: bytes, logo_mime: str) -> None:
     if not settings.SMTP_HOST or not settings.SMTP_USER:
         raise ValueError("SMTP no configurado — añadir SMTP_HOST, SMTP_USER y SMTP_PASSWORD al .env")
+
+    to_email = _strip_header_injection(to_email)
+    subject = _strip_header_injection(subject)
 
     CID = 'logo_casmarts_cid'
     if logo_bytes:
@@ -436,8 +548,10 @@ async def send_test_email(
     try:
         _send_smtp(str(body.to_email), subject_text, html, logo_bytes, logo_mime)
     except Exception as e:
+        # No exponer el mensaje crudo de smtplib/SSL (puede filtrar host/puerto/
+        # detalles internos) — se loguea completo server-side y se responde genérico.
         log.error("Error enviando correo de prueba: %s", e)
-        raise HTTPException(status_code=502, detail=f"Error SMTP: {str(e)}")
+        raise HTTPException(status_code=502, detail="Error al enviar el correo de prueba. Revisa la configuración SMTP.")
 
     return {"status": "sent", "to": str(body.to_email), "subject": subject_text}
 
@@ -647,7 +761,8 @@ async def deploy_theme(flow_slug: str, db: AsyncSession = Depends(get_db)):
     try:
         universal_html = _build_universal_template(app_themes, global_theme)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Template build error: {str(e)}")
+        log.error("Error construyendo plantilla universal para deploy de '%s': %s", flow_slug, e)
+        raise HTTPException(status_code=500, detail="Error al construir la plantilla. Revisa los logs del backend.")
 
     output_dir = Path("/shared/authentik/templates/if")
     try:
@@ -655,9 +770,11 @@ async def deploy_theme(flow_slug: str, db: AsyncSession = Depends(get_db)):
         output_path = output_dir / "flow.html"
         output_path.write_text(universal_html, encoding="utf-8")
     except OSError as e:
+        log.error("Error escribiendo flow.html para '%s' en volumen compartido: %s", flow_slug, e)
         raise HTTPException(
             status_code=503,
-            detail=f"Cannot write to shared volume: {str(e)}. Mount '../core-casmarts/data/authentik/custom-templates'.",
+            detail="No se pudo escribir en el volumen compartido. Verifica el mount "
+                   "'../core-casmarts/data/authentik/custom-templates' y sus permisos.",
         )
 
     await cache.delete(f"theme:{flow_slug}:global")

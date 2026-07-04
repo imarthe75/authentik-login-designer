@@ -4,18 +4,49 @@
     <div class="flex items-center gap-3">
       <div class="bg-[#4272A5] text-white p-2 rounded-lg font-black text-sm tracking-wider">CA</div>
       <div>
-        <h1 class="font-extrabold text-base text-gray-800 leading-none">Authentik Login Designer</h1>
-        <span class="text-[10px] text-gray-400 font-semibold tracking-widest uppercase">CASMARTS SAAS INTERNAL</span>
+        <h1 class="font-extrabold text-base text-gray-800 leading-none">
+          Authentik Login Designer
+          @if (!tenantState.loading()) {
+            <span> - {{ tenantState.tenant().tenant_name }}</span>
+          }
+        </h1>
+        <span class="text-[10px] text-gray-400 font-semibold tracking-widest uppercase">
+          @if (tenantState.loading()) {
+            Cargando tenant...
+          } @else {
+            {{ tenantState.tenant().domain_pattern }}
+          }
+        </span>
       </div>
     </div>
-    @if (!loading()) {
-      <app-theme-selector
-        [themes]="themesList()"
-        [currentSlug]="state.theme().authentik_flow_slug"
-        (selectSlug)="handleSelectSlug($event)"
-        (createTheme)="handleCreateTheme($event)"
-      />
-    }
+    <div class="flex items-center gap-4">
+      <!-- Política de Contraseña es GLOBAL (una sola PasswordPolicy real en
+           Authentik, no una por tenant) — a diferencia de todo lo demás en
+           este header, alcanzable sin seleccionar un tenant primero. -->
+      <button type="button" (click)="passwordPolicyOpen.set(!passwordPolicyOpen())"
+              class="text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors"
+              [class.bg-blue-50]="passwordPolicyOpen()"
+              [class.border-blue-300]="passwordPolicyOpen()"
+              [class.text-blue-700]="passwordPolicyOpen()"
+              [class.border-gray-300]="!passwordPolicyOpen()"
+              [class.text-gray-600]="!passwordPolicyOpen()">
+        🔒 Política de Contraseña
+      </button>
+      <div class="w-64">
+        <app-tenant-selector
+          [selectedTenantId]="selectedTenantId()"
+          (selectTenant)="handleSelectTenant($event)"
+        />
+      </div>
+      @if (selectedTenantId() && !loading()) {
+        <app-theme-selector
+          [themes]="themesList()"
+          [currentSlug]="state.theme().authentik_flow_slug"
+          (selectSlug)="handleSelectSlug($event)"
+          (createTheme)="handleCreateTheme($event)"
+        />
+      }
+    </div>
   </header>
 
   <!-- Main -->
@@ -30,7 +61,28 @@
       </div>
     }
 
-    @if (emailEditorOpen()) {
+    @if (passwordPolicyOpen()) {
+      <section class="flex-1 h-full flex flex-col overflow-hidden">
+        <div class="shrink-0 flex items-center gap-2 px-4 py-2 bg-white border-b border-gray-200 z-10">
+          <button type="button" (click)="passwordPolicyOpen.set(false)"
+                  class="text-xs text-gray-500 hover:text-blue-600 border border-gray-300 rounded px-2.5 py-1 transition-colors">
+            ← Volver al diseño
+          </button>
+          <span class="text-xs font-semibold text-gray-700 ml-2">🔒 Política de Contraseña</span>
+        </div>
+        <app-password-policy-panel class="flex-1 min-h-0 flex" />
+      </section>
+    } @else if (!selectedTenantId()) {
+      <!-- Nada (temas, preview, panel de configuración) debe activarse hasta
+           elegir un tenant explícitamente en el selector del header. -->
+      <section class="flex-1 h-full flex items-center justify-center">
+        <div class="text-center max-w-sm">
+          <p class="text-4xl mb-3">🏢</p>
+          <p class="text-sm font-semibold text-gray-600">Selecciona un tenant para comenzar</p>
+          <p class="text-xs text-gray-400 mt-1">Usa el selector "Seleccionar Tenant" en la parte superior.</p>
+        </div>
+      </section>
+    } @else if (emailEditorOpen()) {
       <!-- Vista Correo: ancho completo, reemplaza el layout normal -->
       <section class="flex-1 h-full flex flex-col overflow-hidden">
         <div class="shrink-0 flex items-center gap-2 px-4 py-2 bg-white border-b border-gray-200 z-10">
@@ -39,6 +91,18 @@
             ← Volver al diseño
           </button>
           <span class="text-xs font-semibold text-gray-700 ml-2">📧 Vista Correo</span>
+          <!-- Indicador de sobre qué app se está trabajando — sin esto no había
+               forma de saber, dentro de Vista Correo, si el editor apuntaba al
+               tema Global o a un app_slug específico (ej. "starter"). -->
+          @if (state.theme().authentik_app_slug) {
+            <span class="text-xs font-semibold px-2 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200">
+              🎯 {{ state.theme().authentik_app_slug }}
+            </span>
+          } @else {
+            <span class="text-xs font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200">
+              🌐 Global (todas las aplicaciones)
+            </span>
+          }
         </div>
         <div class="flex-1 min-h-0">
           <app-email-editor-split
@@ -61,6 +125,7 @@
           [savePhase]="state.savePhase()"
           [deployError]="state.deployError()"
           [authentikApps]="authentikApps()"
+          [selectedTenantId]="selectedTenantId()"
           (updateField)="state.updateField($event.key, $event.value)"
           (uploadFile)="state.uploadFileField($event.key, $event.file)"
           (save)="handleSave()"
