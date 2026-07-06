@@ -31,6 +31,12 @@
             class="py-3 px-4 text-sm font-medium text-gray-700 hover:text-gray-900 whitespace-nowrap transition-colors">
       Notificaciones
     </button>
+    <button (click)="setTab('advanced')"
+            [class.border-b-2]="activeTab() === 'advanced'"
+            [class.border-blue-500]="activeTab() === 'advanced'"
+            class="py-3 px-4 text-sm font-medium text-gray-700 hover:text-gray-900 whitespace-nowrap transition-colors">
+      Avanzado
+    </button>
   </div>
 
   <!-- Scrollable Content -->
@@ -688,6 +694,15 @@
           <input #pdfInput type="file" accept=".pdf" hidden
                  (change)="handlePdfChange($event)" />
         </div>
+      </div>
+    }
+
+    @if (activeTab() === 'advanced') {
+      <div class="space-y-6">
+        <app-expansion-settings-manager
+          [initialConfig]="theme.expansion_config || undefined"
+          (configChanged)="onField('expansion_config', $event)">
+        </app-expansion-settings-manager>
       </div>
     }
   </div>

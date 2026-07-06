@@ -7,7 +7,15 @@ export type EmailEventType =
   | 'new_account'
   | 'account_lockout'
   | 'email_verification'
-  | 'security_change';
+  | 'security_change'
+  | 'account_locked_admin'
+  | 'account_unlocked_admin'
+  | 'login_success'
+  | 'suspicious_request'
+  | 'invitation_used'
+  | 'app_authorized'
+  | 'impersonation_started'
+  | 'account_deleted';
 
 export interface EmailBody {
   subject: string;
@@ -64,6 +72,7 @@ export interface Theme {
   email_template_type: EmailTemplateType;
   custom_messages?: Record<string, string> | null;
   email_bodies?: EmailBodies;
+  expansion_config?: import('./models').AuthentikExpansionConfig | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -74,6 +83,14 @@ export const EMAIL_EVENT_TYPES: EmailEventType[] = [
   'account_lockout',
   'email_verification',
   'security_change',
+  'account_locked_admin',
+  'account_unlocked_admin',
+  'login_success',
+  'suspicious_request',
+  'invitation_used',
+  'app_authorized',
+  'impersonation_started',
+  'account_deleted',
 ];
 
 export const EMAIL_EVENT_LABELS: Record<EmailEventType, string> = {
@@ -82,6 +99,14 @@ export const EMAIL_EVENT_LABELS: Record<EmailEventType, string> = {
   account_lockout: 'Bloqueo de cuenta',
   email_verification: 'Verificación de correo',
   security_change: 'Cambio de seguridad',
+  account_locked_admin: 'Bloqueo por administrador',
+  account_unlocked_admin: 'Desbloqueo por administrador',
+  login_success: 'Inicio de sesión exitoso',
+  suspicious_request: 'Actividad sospechosa',
+  invitation_used: 'Invitación aceptada',
+  app_authorized: 'Aplicación autorizada',
+  impersonation_started: 'Acceso administrativo (impersonación)',
+  account_deleted: 'Cuenta eliminada',
 };
 
 export const EMPTY_EMAIL_BODY: EmailBody = { subject: '', body_html: '' };

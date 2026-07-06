@@ -8,10 +8,12 @@ import {
   Theme, SavePhase, EmailBody,
 } from '../../models/theme.model';
 
+import { ExpansionSettingsManagerComponent } from '../expansion-settings/expansion-settings.component';
+
 @Component({
   selector: 'app-config-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, LucideAngularModule, ExpansionSettingsManagerComponent],
   templateUrl: './config-panel.component.html'
 })
 export class ConfigPanelComponent implements OnInit {

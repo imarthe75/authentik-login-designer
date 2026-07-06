@@ -287,9 +287,17 @@ async def preview_email(
     flow_map = {
         'password_reset': 'password-recovery',
         'email_verification': 'default-source-enrollment',
-        'new_account': 'default-source-enrollment',
+        'new_account': 'password-recovery',
         'account_lockout': 'default-authentication-flow',
         'security_change': 'default-user-settings-flow',
+        'account_locked_admin': 'default-authentication-flow',
+        'account_unlocked_admin': 'default-authentication-flow',
+        'login_success': 'default-authentication-flow',
+        'suspicious_request': 'default-authentication-flow',
+        'invitation_used': 'default-authentication-flow',
+        'app_authorized': 'default-authentication-flow',
+        'impersonation_started': 'default-user-settings-flow',
+        'account_deleted': 'default-authentication-flow',
     }
     flow_slug = flow_map.get(event_type, 'default-authentication-flow')
     cta_url = f'https://auth.casmart.internal/if/flow/{flow_slug}/'
@@ -511,9 +519,17 @@ async def send_test_email(
     flow_map = {
         'password_reset': 'password-recovery',
         'email_verification': 'default-source-enrollment',
-        'new_account': 'default-source-enrollment',
+        'new_account': 'password-recovery',
         'account_lockout': 'default-authentication-flow',
         'security_change': 'default-user-settings-flow',
+        'account_locked_admin': 'default-authentication-flow',
+        'account_unlocked_admin': 'default-authentication-flow',
+        'login_success': 'default-authentication-flow',
+        'suspicious_request': 'default-authentication-flow',
+        'invitation_used': 'default-authentication-flow',
+        'app_authorized': 'default-authentication-flow',
+        'impersonation_started': 'default-user-settings-flow',
+        'account_deleted': 'default-authentication-flow',
     }
     cta_url_flow = flow_map.get(body.event_type, 'default-authentication-flow')
     cta_url = f'https://auth.casmart.internal/if/flow/{cta_url_flow}/'
