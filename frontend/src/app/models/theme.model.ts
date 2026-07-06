@@ -1,7 +1,16 @@
+/** Alineación de texto y diseño (izquierda, centro, derecha). */
 export type AlignValue = 'left' | 'center' | 'right';
+
+/** Tipo de fondo de pantalla a renderizar. */
 export type BgType = 'gradient' | 'color' | 'image';
+
+/** Fase del ciclo de persistencia de cambios en la API del designer. */
 export type SavePhase = 'idle' | 'saving' | 'deploying' | 'done' | 'deploy_error';
+
+/** Tipo de plantilla de envío de correo en Authentik. */
 export type EmailTemplateType = 'integrated' | 'custom_per_event';
+
+/** Lista de todos los tipos de eventos de correo electrónico soportados. */
 export type EmailEventType =
   | 'password_reset'
   | 'new_account'
@@ -17,13 +26,18 @@ export type EmailEventType =
   | 'impersonation_started'
   | 'account_deleted';
 
+/** Estructura que define el cuerpo HTML y el asunto de una plantilla de correo electrónico. */
 export interface EmailBody {
   subject: string;
   body_html: string;
 }
 
+/** Diccionario opcional de plantillas mapeadas por tipo de evento de correo. */
 export type EmailBodies = Partial<Record<EmailEventType, EmailBody>>;
 
+/**
+ * Interfaz que representa el modelo completo del Tema de un Tenant (Designer).
+ */
 export interface Theme {
   id?: string;
   authentik_flow_slug: string;

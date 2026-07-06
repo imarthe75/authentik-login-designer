@@ -431,13 +431,19 @@ const DEFAULT_CONFIG: AuthentikExpansionConfig = {
     </div>
   `
 })
+/**
+ * Componente Angular que gestiona el panel y formulario para la edición de las opciones
+ * de configuración de expansión avanzadas de Authentik (MFA, traducción del DOM, avisos de error, dashboard).
+ */
 export class ExpansionSettingsManagerComponent {
+  /** Configuración inicial recibida para poblar el estado local del componente. */
   @Input() set initialConfig(val: AuthentikExpansionConfig | undefined) {
     if (val) {
       this.configSignal.set({ ...DEFAULT_CONFIG, ...val });
     }
   }
 
+  /** Evento emitido cada vez que se modifica y guarda la configuración de expansión. */
   @Output() configChanged = new EventEmitter<AuthentikExpansionConfig>();
 
   public configSignal = signal<AuthentikExpansionConfig>({ ...DEFAULT_CONFIG });

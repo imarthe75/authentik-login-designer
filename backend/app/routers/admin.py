@@ -44,9 +44,10 @@ ADMIN_KEY_RATE_WINDOW = 300     # por ventana de 5 minutos, por IP
 
 
 def _is_trusted_proxy_peer(request: Request) -> bool:
-    """Mismo check que authentik-login-manager: solo se confía en X-Real-IP
-    si la conexión TCP inmediata viene del gateway (evita que cualquier
-    contenedor en la red Docker compartida spoofee la IP de origen)."""
+    """
+    Verifica si el origen de la conexión TCP inmediata proviene del gateway de confianza.
+    Previene la suplantación (spoofing) de la cabecera X-Real-IP por contenedores no autorizados.
+    """
     if not request.client:
         return False
     try:
@@ -58,6 +59,10 @@ def _is_trusted_proxy_peer(request: Request) -> bool:
 
 
 async def verify_admin_key(request: Request, x_admin_key: str = Header(..., alias="X-Admin-Key")):
+    """
+    Dependencia de FastAPI para verificar la clave API de administración enviada en la cabecera.
+    Implementa rate limit por IP de origen utilizando Valkey y comparación en tiempo constante (secrets.compare_digest).
+    """
     # Ver nota en authentik-login-manager/backend/app/routers/admin.py:
     # request.client.host es siempre la IP del gateway, no la del navegador
     # real — sin esto, el rate limit se comparte entre todos los usuarios.
@@ -69,9 +74,7 @@ async def verify_admin_key(request: Request, x_admin_key: str = Header(..., alia
     if secrets.compare_digest(x_admin_key, settings.ADMIN_API_KEY):
         return  # clave correcta: no consume el cupo de fuerza bruta
 
-    # Solo los INTENTOS FALLIDOS cuentan para el límite (ver nota extendida
-    # en authentik-login-manager) — antes se incrementaba en cada request,
-    # y un solo admin agotaba el cupo con uso normal.
+    # Solo los INTENTOS FALLIDOS cuentan para el límite (ver nota de tokens)
     rate_key = f"ratelimit:admin_key:{client_ip}"
     attempts = await cache.incr_with_ttl(rate_key, ADMIN_KEY_RATE_WINDOW)
     if attempts is not None and attempts > ADMIN_KEY_RATE_LIMIT:
@@ -91,6 +94,9 @@ async def verify_admin_key(request: Request, x_admin_key: str = Header(..., alia
 # ── helpers ─────────────────────────────────────────────────────────────────
 
 async def _load_email_bodies(flow_slug: str, db: AsyncSession) -> Dict[str, EmailBodySchema]:
+    """
+    Carga todos los cuerpos de correo electrónico personalizados guardados para un flujo específico de tenant.
+    """
     result = await db.execute(
         select(TenantEmailBody).where(TenantEmailBody.flow_slug == flow_slug)
     )
@@ -105,6 +111,9 @@ async def _upsert_email_bodies(
     bodies: Dict[str, EmailBodySchema],
     db: AsyncSession
 ) -> None:
+    """
+    Inserta o actualiza masivamente los cuerpos de correo de eventos asociados a un flujo de tenant.
+    """
     for event_type, body in bodies.items():
         if event_type not in EMAIL_EVENT_TYPES:
             continue
@@ -131,6 +140,9 @@ async def _upsert_email_bodies(
 def _build_theme_response_with_email(
     db_theme: TenantTheme, email_bodies: Dict[str, EmailBodySchema]
 ) -> ThemeResponseWithEmail:
+    """
+    Construye el esquema de respuesta que asocia la configuración del tema con los cuerpos de correo.
+    """
     data = {c.name: getattr(db_theme, c.name) for c in db_theme.__table__.columns}
     return ThemeResponseWithEmail(**data, email_bodies=email_bodies)
 

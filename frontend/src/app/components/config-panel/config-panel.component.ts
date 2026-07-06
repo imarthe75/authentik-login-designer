@@ -10,6 +10,10 @@ import {
 
 import { ExpansionSettingsManagerComponent } from '../expansion-settings/expansion-settings.component';
 
+/**
+ * Componente que representa el panel lateral de diseño y configuración del login en Angular (Designer).
+ * Contiene pestañas para el aspecto visual, imágenes, privacidad, notificaciones y configuraciones avanzadas.
+ */
 @Component({
   selector: 'app-config-panel',
   standalone: true,
@@ -19,20 +23,32 @@ import { ExpansionSettingsManagerComponent } from '../expansion-settings/expansi
 export class ConfigPanelComponent implements OnInit {
   private readonly api = inject(ThemeApiService);
 
+  /** Configuración actual del tema. */
   @Input({ required: true }) theme!: Theme;
+  /** Estado de cambios locales sin guardar. */
   @Input({ required: true }) isDirty = false;
+  /** Fase actual de persistencia (guardando, desplegando, idle, etc.). */
   @Input({ required: true }) savePhase: SavePhase = 'idle';
+  /** Detalle del error de despliegue si ocurriera alguno. */
   @Input({ required: true }) deployError: string | null = null;
+  /** Lista de aplicaciones registradas en Authentik. */
   @Input({ required: true }) authentikApps: { slug: string; name: string }[] = [];
-  // El listado de aplicaciones no debe mostrarse hasta elegir un tenant
-  // (ver app.component.ts: fetchApps() se difiere hasta handleSelectTenant).
+  /** Identificador del tenant seleccionado en el espacio de trabajo. */
   @Input() selectedTenantId: string | null = null;
+
+  /** Evento emitido cuando un campo del tema es modificado. */
   @Output() updateField = new EventEmitter<{ key: keyof Theme; value: any }>();
+  /** Evento emitido al seleccionar y subir una imagen (logo o fondo). */
   @Output() uploadFile = new EventEmitter<{ key: 'logo_top_base64'|'logo_bottom_base64'|'bg_image_base64'; file: File }>();
+  /** Evento emitido para guardar y persistir los cambios actuales. */
   @Output() save = new EventEmitter<void>();
+  /** Evento emitido para reintentar el despliegue tras un error. */
   @Output() retryDeploy = new EventEmitter<void>();
+  /** Evento emitido al cambiar la aplicación en foco. */
   @Output() changeApp = new EventEmitter<string | null>();
+  /** Evento emitido al actualizar una plantilla de correo específica. */
   @Output() updateEmailBody = new EventEmitter<{ eventType: string; body: EmailBody }>();
+  /** Evento emitido para abrir la ventana modal o vista dividida del editor de correo. */
   @Output() openEmailEditor = new EventEmitter<void>();
 
   @ViewChild('logoTopInput') logoTopRef!: ElementRef<HTMLInputElement>;

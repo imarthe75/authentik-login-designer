@@ -115,22 +115,28 @@ const DEFAULT_VARIABLES: EmailVariable[] = [
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const REAL_TEST_NEEDS_USERNAME = new Set<EmailEventType>(['password_reset', 'email_verification', 'account_lockout']);
 
+/**
+ * Componente de vista dividida (split) para la edición en tiempo real de plantillas de correo.
+ * Integra el editor de texto enriquecido (TipTap) con la vista de previsualización interactiva y
+ * herramientas de pruebas de envío de correos (SMTP directas e integradas con Authentik).
+ */
 @Component({
   selector: 'app-email-editor-split',
   standalone: true,
   imports: [CommonModule, FormsModule, RichTextEditorComponent, EmailPreviewComponent],
   templateUrl: './email-editor-split.component.html',
-  // Los elementos custom son `display: inline` por defecto — sin esto,
-  // h-full/flex-1 dentro de la plantilla no tienen un contenedor con
-  // tamaño real del que heredar porcentajes.
   styles: [':host { display: block; width: 100%; height: 100%; }'],
 })
 export class EmailEditorSplitComponent implements OnInit, OnChanges {
   private readonly api = inject(ThemeApiService);
 
+  /** Configuración completa del tema del tenant. */
   @Input({ required: true }) theme!: Theme;
+  /** Tipo de evento de correo activo que se está editando en este momento. */
   @Input({ required: true }) activeEventType!: EmailEventType;
+  /** Evento emitido al realizar modificaciones en el asunto o cuerpo HTML del correo. */
   @Output() updateEmailBody = new EventEmitter<{ eventType: EmailEventType; body: EmailBody }>();
+  /** Evento emitido al seleccionar un tipo de evento diferente del listado lateral. */
   @Output() selectEvent = new EventEmitter<EmailEventType>();
 
   readonly EMAIL_EVENT_TYPES = EMAIL_EVENT_TYPES;
