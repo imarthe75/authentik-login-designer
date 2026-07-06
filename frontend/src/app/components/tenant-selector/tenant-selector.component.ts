@@ -44,4 +44,9 @@ export class TenantSelectorComponent implements OnInit {
       this.selectTenant.emit({ tenantId: tenant.tenant_id, tenantName: tenant.tenant_name });
     }
   }
+
+  getBlueprintUrl(st: any): string {
+    const baseUrl = (window as any).__env?.API_BASE_URL || 'http://localhost:8000';
+    return `${baseUrl}/api/v1/themes/blueprint/download?brand_name=${encodeURIComponent(st.tenant_name)}&domain=${encodeURIComponent(st.domain_pattern)}`;
+  }
 }

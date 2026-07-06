@@ -43,6 +43,46 @@ const DEFAULT_BODIES: Record<EmailEventType, { subject: string; body_html: strin
       + '<p style="margin:0 0 16px;">Se realizó un cambio de seguridad en tu cuenta.</p>'
       + '<p style="margin:24px 0 0;font-size:12px;color:#888;">Si no reconoces este cambio, contacta al administrador.</p>',
   },
+  account_locked_admin: {
+    subject: 'Aviso: cuenta bloqueada',
+    body_html: '<h2 style="font-size:20px;font-weight:bold;color:#d32f2f;margin:0 0 16px;">Cuenta bloqueada (aviso administrativo)</h2>'
+      + '<p style="margin:0 0 16px;">La cuenta <strong>{{ user.username }}</strong> fue bloqueada por múltiples intentos fallidos.</p>',
+  },
+  account_unlocked_admin: {
+    subject: 'Aviso: cuenta desbloqueada',
+    body_html: '<h2 style="font-size:20px;font-weight:bold;color:#222;margin:0 0 16px;">Cuenta desbloqueada</h2>'
+      + '<p style="margin:0 0 16px;">La cuenta <strong>{{ user.username }}</strong> fue desbloqueada.</p>',
+  },
+  login_success: {
+    subject: 'Nuevo inicio de sesión',
+    body_html: '<h2 style="font-size:20px;font-weight:bold;color:#222;margin:0 0 16px;">Nuevo inicio de sesión</h2>'
+      + '<p style="margin:0 0 16px;">Hola <strong>{{ user.username }}</strong>, detectamos un nuevo inicio de sesión en tu cuenta.</p>',
+  },
+  suspicious_request: {
+    subject: 'Actividad sospechosa detectada',
+    body_html: '<h2 style="font-size:20px;font-weight:bold;color:#d32f2f;margin:0 0 16px;">Actividad sospechosa</h2>'
+      + '<p style="margin:0 0 16px;">Hola <strong>{{ user.username }}</strong>, detectamos actividad inusual en tu cuenta.</p>',
+  },
+  invitation_used: {
+    subject: 'Invitación utilizada',
+    body_html: '<h2 style="font-size:20px;font-weight:bold;color:#222;margin:0 0 16px;">Invitación aceptada</h2>'
+      + '<p style="margin:0 0 16px;">Hola <strong>{{ user.username }}</strong>, tu invitación fue utilizada correctamente.</p>',
+  },
+  app_authorized: {
+    subject: 'Nueva aplicación autorizada',
+    body_html: '<h2 style="font-size:20px;font-weight:bold;color:#222;margin:0 0 16px;">Aplicación autorizada</h2>'
+      + '<p style="margin:0 0 16px;">Hola <strong>{{ user.username }}</strong>, autorizaste el acceso de una nueva aplicación a tu cuenta.</p>',
+  },
+  impersonation_started: {
+    subject: 'Sesión de suplantación iniciada',
+    body_html: '<h2 style="font-size:20px;font-weight:bold;color:#d32f2f;margin:0 0 16px;">Suplantación de identidad</h2>'
+      + '<p style="margin:0 0 16px;">Un administrador inició una sesión de suplantación sobre la cuenta <strong>{{ user.username }}</strong>.</p>',
+  },
+  account_deleted: {
+    subject: 'Cuenta eliminada',
+    body_html: '<h2 style="font-size:20px;font-weight:bold;color:#222;margin:0 0 16px;">Cuenta eliminada</h2>'
+      + '<p style="margin:0 0 16px;">La cuenta <strong>{{ user.username }}</strong> fue eliminada del sistema.</p>',
+  },
 };
 
 @Injectable({ providedIn: 'root' })

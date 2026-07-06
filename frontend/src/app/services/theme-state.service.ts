@@ -72,13 +72,13 @@ export class ThemeStateService {
     this._savePhase() === 'saving' || this._savePhase() === 'deploying'
   );
 
-  async loadTheme(slug: string, appSlug?: string | null): Promise<void> {
+  async loadTheme(slug: string, appSlug?: string | null, tenantId?: string | null): Promise<void> {
     this._error.set(null);
     this._currentSlug.set(slug);
     try {
       if (appSlug) {
         try {
-          const data = await firstValueFrom(this.api.getTheme(slug, appSlug));
+          const data = await firstValueFrom(this.api.getTheme(slug, appSlug, tenantId));
           this._theme.set(data);
           this._isDirty.set(false);
           this._savePhase.set('idle');
@@ -86,7 +86,7 @@ export class ThemeStateService {
           return;
         } catch {
           try {
-            const globalData: Theme = await firstValueFrom(this.api.getTheme(slug, null));
+            const globalData: Theme = await firstValueFrom(this.api.getTheme(slug, null, tenantId));
             const appTheme: Theme = { ...globalData, authentik_app_slug: appSlug,
               display_name: `${globalData.display_name} - ${appSlug}` };
             delete (appTheme as any).id;
@@ -99,7 +99,7 @@ export class ThemeStateService {
         }
       } else {
         try {
-          const data = await firstValueFrom(this.api.getTheme(slug, null));
+          const data = await firstValueFrom(this.api.getTheme(slug, null, tenantId));
           this._theme.set(data);
           this._isDirty.set(false);
           this._savePhase.set('idle');
@@ -171,14 +171,14 @@ export class ThemeStateService {
     }
   }
 
-  async saveTheme(): Promise<void> {
+  async saveTheme(tenantId?: string | null): Promise<void> {
     let phase: SavePhase = 'idle';
     try {
       this._error.set(null);
       this._deployError.set(null);
       phase = 'saving';
       this._savePhase.set('saving');
-      const saved = await firstValueFrom(this.api.upsertTheme(this._theme()));
+      const saved = await firstValueFrom(this.api.upsertTheme(this._theme(), tenantId));
       this._theme.set(saved);
       this._isDirty.set(false);
       phase = 'deploying';

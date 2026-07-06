@@ -90,11 +90,54 @@ async def update_tenant_settings(body: TenantSettingsUpdate, db: AsyncSession = 
     return {"default_app_url": tenant.config.get("default_app_url")}
 
 
+from sqlalchemy import text
+from app.routers.admin import authentik_engine
+
+
+async def _sync_tenants_from_authentik(db: AsyncSession) -> None:
+    """
+    Sincroniza las marcas (brands) de Authentik hacia la tabla local de tenants.
+    """
+    try:
+        async with authentik_engine.connect() as conn:
+            result = await conn.execute(
+                text("SELECT brand_uuid, domain, branding_title FROM authentik_brands_brand")
+            )
+            authentik_brands = result.all()
+            
+        for brand in authentik_brands:
+            brand_id, domain, name = brand
+            
+            stmt = select(Tenant).where(Tenant.id == brand_id)
+            db_res = await db.execute(stmt)
+            existing = db_res.scalar_one_or_none()
+            
+            if existing:
+                existing.name = name
+                existing.domain_pattern = domain
+                db.add(existing)
+            else:
+                new_tenant = Tenant(
+                    id=brand_id,
+                    name=name,
+                    domain_pattern=domain,
+                    is_active=True,
+                    primary_color="#4272A5",
+                    secondary_color="#2d5580"
+                )
+                db.add(new_tenant)
+                
+        await db.commit()
+    except Exception as e:
+        log.error(f"Error syncing tenants from Authentik: {e}")
+
+
 @router.get("/list")
 async def list_available_tenants(db: AsyncSession = Depends(get_db)):
     """Lista tenants activos — mismo contrato público que el manager (sin
     datos sensibles: solo nombre/dominio/colores)."""
     try:
+        await _sync_tenants_from_authentik(db)
         result = await db.execute(
             select(Tenant).where(Tenant.is_active == True).order_by(Tenant.name)
         )

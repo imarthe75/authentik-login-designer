@@ -6,6 +6,7 @@ from app.config import settings
 from app.database import engine, Base
 from app.cache import cache
 from app.routers.password_policy import router as password_policy_router
+from app.routers.auth import auth_router
 from app.routers import admin, public, tenant
 
 logging.basicConfig(level=logging.INFO)
@@ -56,6 +57,7 @@ async def security_headers_middleware(request: Request, call_next):
     response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
     return response
 
+app.include_router(auth_router)
 app.include_router(admin.router)
 app.include_router(public.router)
 app.include_router(tenant.router)

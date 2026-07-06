@@ -1,5 +1,6 @@
 import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ThemeStateService } from './services/theme-state.service';
 import { ThemeApiService } from './services/theme-api.service';
 import { TenantStateService } from './services/tenant-state.service';
@@ -10,13 +11,14 @@ import { ConfigPanelComponent } from './components/config-panel/config-panel.com
 import { EmailEditorSplitComponent } from './components/email-editor-split/email-editor-split.component';
 import { TenantSelectorComponent } from './components/tenant-selector/tenant-selector.component';
 import { PasswordPolicyPanelComponent } from './components/password-policy-panel/password-policy-panel.component';
+import { AdminAuthService } from './services/admin-auth.service';
 import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-root',
   standalone: true,
   imports: [
-    CommonModule, ThemeSelectorComponent, LoginPreviewComponent, ConfigPanelComponent,
+    CommonModule, FormsModule, ThemeSelectorComponent, LoginPreviewComponent, ConfigPanelComponent,
     EmailEditorSplitComponent, TenantSelectorComponent, PasswordPolicyPanelComponent
   ],
   templateUrl: './app.component.html'
@@ -25,6 +27,24 @@ export class AppComponent implements OnInit {
   protected readonly state = inject(ThemeStateService);
   private readonly api = inject(ThemeApiService);
   protected readonly tenantState = inject(TenantStateService);
+  protected readonly auth = inject(AdminAuthService);
+
+  readonly adminKeyInput = signal('');
+  readonly loginError = signal<string | null>(null);
+  readonly loggingIn = signal(false);
+
+  async submitLogin(): Promise<void> {
+    this.loggingIn.set(true);
+    this.loginError.set(null);
+    try {
+      await this.auth.login(this.adminKeyInput());
+    } catch (err: any) {
+      this.loginError.set(err?.error?.detail || 'Credenciales inválidas');
+    } finally {
+      this.loggingIn.set(false);
+      this.adminKeyInput.set('');
+    }
+  }
 
   readonly themesList = signal<Theme[]>([]);
   readonly authentikApps = signal<{ slug: string; name: string }[]>([]);
@@ -47,6 +67,7 @@ export class AppComponent implements OnInit {
   readonly passwordPolicyOpen = signal(false);
 
   async ngOnInit(): Promise<void> {
+    await this.auth.checkStatus();
     // Nada (temas, aplicaciones, panel principal) debe activarse hasta que
     // se seleccione un tenant explícitamente — solo se resuelve el tenant
     // para mostrarlo en el header/selector, pero no se cargan temas ni apps
@@ -57,23 +78,23 @@ export class AppComponent implements OnInit {
 
   handleSelectTenant(event: { tenantId: string; tenantName: string }): void {
     this.selectedTenantId.set(event.tenantId);
-    this.fetchApps();
+    this.fetchApps(event.tenantId);
     this.fetchThemes();
   }
 
-  private async fetchApps(): Promise<void> {
+  private async fetchApps(tenantId?: string | null): Promise<void> {
     try {
-      const apps = await firstValueFrom(this.api.getAuthentikApplications());
+      const apps = await firstValueFrom(this.api.getAuthentikApplications(tenantId));
       this.authentikApps.set(apps);
     } catch (err) {
       console.error('Error fetching Authentik applications list:', err);
     }
   }
 
-  async fetchThemes(): Promise<void> {
+  async fetchThemes(tenantId?: string | null): Promise<void> {
     try {
       this.loading.set(true);
-      const data = await firstValueFrom(this.api.getThemes());
+      const data = await firstValueFrom(this.api.getThemes(tenantId));
       this.themesList.set(data);
       if (data.length > 0) {
         const found = data.find(t => t.authentik_flow_slug === this.state.currentSlug());
@@ -81,7 +102,7 @@ export class AppComponent implements OnInit {
           this.state.setTheme(found);
           this.state.setIsDirty(false);
         } else {
-          await this.state.loadTheme(data[0].authentik_flow_slug);
+          await this.state.loadTheme(data[0].authentik_flow_slug, null, tenantId);
         }
       } else {
         const seed = this.buildSeedTheme();
@@ -100,14 +121,14 @@ export class AppComponent implements OnInit {
     if (this.state.isDirty()) {
       if (!confirm('Tienes cambios sin guardar en este portal. ¿Deseas descartarlos y cambiar de portal?')) return;
     }
-    await this.state.loadTheme(slug);
+    await this.state.loadTheme(slug, null, this.selectedTenantId());
   }
 
   async handleChangeApp(appSlug: string | null): Promise<void> {
     if (this.state.isDirty()) {
       if (!confirm('Tienes cambios sin guardar. ¿Deseas descartarlos y cambiar de aplicación?')) return;
     }
-    await this.state.loadTheme(this.state.theme().authentik_flow_slug, appSlug);
+    await this.state.loadTheme(this.state.theme().authentik_flow_slug, appSlug, this.selectedTenantId());
   }
 
   handleCreateTheme(payload: { displayName: string; flowSlug: string }): void {
@@ -121,8 +142,8 @@ export class AppComponent implements OnInit {
   }
 
   async handleSave(): Promise<void> {
-    await this.state.saveTheme();
-    await this.fetchThemes();
+    await this.state.saveTheme(this.selectedTenantId());
+    await this.fetchThemes(this.selectedTenantId());
   }
 
   private buildSeedTheme(): Theme {

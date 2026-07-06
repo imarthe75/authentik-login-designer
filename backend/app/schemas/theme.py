@@ -89,7 +89,7 @@ class ThemeBase(BaseModel):
     custom_messages: Optional[Dict[str, str]] = Field(default_factory=dict)
     expansion_config: Optional[Dict] = Field(default_factory=dict)
 
-    @field_validator("system_name", mode="after")
+    @field_validator("system_name", "system_subtitle", mode="after")
     @classmethod
     def sanitize_system_name(cls, v: str) -> str:
         return _sanitize_html_fragment(v)
@@ -173,13 +173,14 @@ class ThemeUpdate(BaseModel):
     email_footer_text: Optional[str] = Field(None, max_length=255)
     email_template_type: Optional[EMAIL_TEMPLATE_TYPE] = None
     custom_messages: Optional[Dict[str, str]] = None
+    expansion_config: Optional[Dict] = None
 
     @field_validator("email_footer_text", mode="before")
     @classmethod
     def strip_footer(cls, v: object) -> object:
         return v.strip() if isinstance(v, str) else v
 
-    @field_validator("system_name", "logo_top_text", "logo_bottom_text", mode="after")
+    @field_validator("system_name", "system_subtitle", "logo_top_text", "logo_bottom_text", mode="after")
     @classmethod
     def sanitize_text_fragments(cls, v: Optional[str]) -> Optional[str]:
         return _sanitize_html_fragment(v)
@@ -274,12 +275,13 @@ class ThemePublic(BaseModel):
     show_app_message: bool = True
     is_custom: bool = True
     custom_messages: Optional[Dict[str, str]] = Field(default_factory=dict)
+    expansion_config: Optional[Dict] = Field(default_factory=dict)
 
     model_config = ConfigDict(from_attributes=True)
 
     # ThemePublic alimenta directamente la página de login real (no solo el
     # preview del admin) — misma defensa en profundidad que ThemeResponse.
-    @field_validator("system_name", "logo_top_text", "logo_bottom_text", mode="after")
+    @field_validator("system_name", "system_subtitle", "logo_top_text", "logo_bottom_text", mode="after")
     @classmethod
     def sanitize_text_fragments(cls, v: Optional[str]) -> Optional[str]:
         return _sanitize_html_fragment(v)

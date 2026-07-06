@@ -12,6 +12,7 @@ from app.models.tenant_theme import TenantTheme
 from app.schemas.theme import ThemePublic
 from app.cache import cache
 from app.config import settings
+from app.routers.admin import verify_admin_key
 
 logger = logging.getLogger("authentik_login_designer.public")
 logger.setLevel(logging.INFO)
@@ -253,7 +254,7 @@ async def get_theme_image(
         logger.error(f"Error decoding image for field '{field}': {e}")
         raise HTTPException(status_code=422, detail="Error decoding stored image data.")
 
-@router.post("/theme/invalidate-cache/{flow_slug}", status_code=status.HTTP_200_OK)
+@router.post("/theme/invalidate-cache/{flow_slug}", status_code=status.HTTP_200_OK, dependencies=[Depends(verify_admin_key)])
 async def invalidate_cache(flow_slug: str):
     logger.info(f"Invalidating cache for flow_slug='{flow_slug}'")
     

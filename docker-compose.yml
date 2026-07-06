@@ -7,10 +7,11 @@ services:
       dockerfile: Dockerfile
     container_name: authentik-login-designer-backend
     environment:
-      DATABASE_URL: postgresql+asyncpg://admin:casmarts_secure_db_pwd_2026@db-primary:5432/authentik_login_manager
+      DATABASE_URL: ${DATABASE_URL}
       VALKEY_URL: redis://cache:6379/1
       CORS_ORIGINS: http://localhost:3000,https://auth.casmart.internal,https://logindesigner.casmart.internal,http://localhost:80
-      ADMIN_API_KEY: casmarts_admin_super_secret_key_123
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
+      SESSION_SECRET: ${SESSION_SECRET}
       PUBLIC_API_BASE_URL: https://auth.casmart.internal
       # Misma instancia de Authentik que authentik-login-manager — solo para
       # el editor de política de contraseña. Token real vía .env (gitignored),
@@ -18,11 +19,15 @@ services:
       # era una práctica preexistente y no se tocó en este cambio).
       AUTHENTIK_HOST: http://casmarts-core-authentik-server:9000
       AUTHENTIK_API_TOKEN: ${AUTHENTIK_API_TOKEN}
-    ports:
-      - "8000:8000"
+    # Sin publicar en el host: el gateway lo alcanza via DNS de Docker
+    # (authentik-login-designer-backend:8000 en identity-network). Publicarlo
+    # en 0.0.0.0:8000 permitía saltarse el gateway (sin TLS) por completo —
+    # hallazgo de la auditoría 2026-07-06 (mismo patrón que el manager, cuyo
+    # backend ya tenía esto comentado).
     restart: always
     volumes:
       - ./backend:/app
+      - ../core-casmarts/data/authentik/custom-templates:/shared/authentik/templates
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     networks:
       - identity-network

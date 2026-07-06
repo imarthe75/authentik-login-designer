@@ -9,21 +9,25 @@ export class ThemeApiService {
   private readonly http = inject(HttpClient);
   private readonly base = environment.apiBase;
 
-  getThemes(skip = 0, limit = 50): Observable<Theme[]> {
-    const params = new HttpParams()
+  getThemes(tenantId?: string | null, skip = 0, limit = 50): Observable<Theme[]> {
+    let params = new HttpParams()
       .set('skip', skip)
       .set('limit', limit);
+    if (tenantId) params = params.set('tenant_id', tenantId);
     return this.http.get<Theme[]>(`${this.base}/v1/themes`, { params });
   }
 
-  getTheme(slug: string, appSlug?: string | null): Observable<Theme> {
+  getTheme(slug: string, appSlug?: string | null, tenantId?: string | null): Observable<Theme> {
     let params = new HttpParams();
     if (appSlug) params = params.set('app_slug', appSlug);
+    if (tenantId) params = params.set('tenant_id', tenantId);
     return this.http.get<Theme>(`${this.base}/v1/themes/${slug}`, { params });
   }
 
-  upsertTheme(theme: Theme): Observable<Theme> {
-    return this.http.post<Theme>(`${this.base}/v1/themes`, theme);
+  upsertTheme(theme: Theme, tenantId?: string | null): Observable<Theme> {
+    let params = new HttpParams();
+    if (tenantId) params = params.set('tenant_id', tenantId);
+    return this.http.post<Theme>(`${this.base}/v1/themes`, theme, { params });
   }
 
   patchTheme(slug: string, partial: Partial<Theme>): Observable<Theme> {
@@ -46,10 +50,11 @@ export class ThemeApiService {
     );
   }
 
-  getAuthentikApplications(): Observable<{ slug: string; name: string }[]> {
-    return this.http.get<{ slug: string; name: string }[]>(
-      `${this.base}/v1/themes/authentik/applications`
-    );
+  getAuthentikApplications(tenantId?: string | null): Observable<{ slug: string; name: string }[]> {
+    const url = tenantId
+      ? `${this.base}/v1/themes/authentik/applications?tenant_id=${tenantId}`
+      : `${this.base}/v1/themes/authentik/applications`;
+    return this.http.get<{ slug: string; name: string }[]>(url);
   }
 
   sendTestEmail(flowSlug: string, eventType: string, toEmail: string, appSlug?: string | null, displayName?: string | null): Observable<{ status: string; to: string; subject: string }> {
