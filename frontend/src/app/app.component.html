@@ -63,6 +63,14 @@
               [class.text-gray-600]="!passwordPolicyOpen()">
         🔒 Política de Contraseña
       </button>
+      <a href="/docs/manual-tecnico-designer.md" download
+         class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors">
+        📖 Manual Técnico
+      </a>
+      <a href="/docs/manual-api.md" download
+         class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors">
+        🔌 Manual API
+      </a>
       <div class="w-64">
         <app-tenant-selector
           [selectedTenantId]="selectedTenantId()"
