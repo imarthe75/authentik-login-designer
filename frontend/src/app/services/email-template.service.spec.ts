@@ -8,6 +8,8 @@ const MINIMAL_THEME: Theme = {
   display_name: 'Test Portal',
   system_name: 'Test',
   system_subtitle: '',
+  system_name_color: '#111827',
+  system_subtitle_color: '#374151',
   layout_position: 'left',
   name_align: 'center',
   subtitle_align: 'center',

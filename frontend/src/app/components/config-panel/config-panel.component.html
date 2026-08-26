@@ -83,6 +83,15 @@
           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
           rows="2"></textarea>
         <p class="text-xs text-gray-500 mt-1">Usa &lt;br&gt; para saltos de línea</p>
+        <div class="mt-2 flex gap-1">
+          <input type="color" [value]="theme.system_name_color"
+            (input)="onField('system_name_color', $any($event.target).value)"
+            class="w-10 h-10 border border-gray-300 rounded cursor-pointer shrink-0" title="Color del título" />
+          <input type="text" [value]="theme.system_name_color"
+            (input)="onField('system_name_color', $any($event.target).value)"
+            class="w-full h-10 border border-gray-300 rounded px-2 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase"
+            placeholder="#000000" />
+        </div>
       </div>
 
       <div>
@@ -92,6 +101,15 @@
         <input type="text" [value]="theme.system_subtitle"
           (input)="onField('system_subtitle', $any($event.target).value)"
           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <div class="mt-2 flex gap-1">
+          <input type="color" [value]="theme.system_subtitle_color"
+            (input)="onField('system_subtitle_color', $any($event.target).value)"
+            class="w-10 h-10 border border-gray-300 rounded cursor-pointer shrink-0" title="Color del subtítulo" />
+          <input type="text" [value]="theme.system_subtitle_color"
+            (input)="onField('system_subtitle_color', $any($event.target).value)"
+            class="w-full h-10 border border-gray-300 rounded px-2 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase"
+            placeholder="#000000" />
+        </div>
       </div>
 
       @if (!theme.authentik_app_slug) {

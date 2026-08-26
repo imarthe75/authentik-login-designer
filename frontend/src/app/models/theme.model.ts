@@ -45,6 +45,8 @@ export interface Theme {
   display_name: string;
   system_name: string;
   system_subtitle: string;
+  system_name_color: string;
+  system_subtitle_color: string;
   layout_position: AlignValue;
   name_align: AlignValue;
   subtitle_align: AlignValue;

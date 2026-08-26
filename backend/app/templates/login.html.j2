@@ -762,20 +762,26 @@ function showErrors(root){
         e.style.setProperty('visibility','visible','important');
         e.style.setProperty('opacity','1','important');
     });
-    // REGLA CRÍTICA 2026-07-10: Ocultar "Inicia sesión para continuar a X"
-    // SOLO en la pantalla de login — NUNCA en otras pantallas. Ese mensaje es
-    // redundante con el botón "Iniciar sesión" y ocupa espacio valioso. Solo
-    // aparece cuando entras vía una app (OAuth authorize a SonarQube, Plane…),
-    // NO en el login plano — por eso hay que probarlo con un flujo de app real.
-    // Ese <p> vive DENTRO del shadow root del stage de identificación, así que
-    // hay que consultar en `root` (cada shadow root que recorre scan), NO en
-    // `document` — sino nunca se alcanza. El selector completo
-    // ".pf-c-login__main-body > p" SÍ es válido en element.querySelectorAll
-    // (solo un combinator inicial suelto "> p" es inválido).
-    root.querySelectorAll('.pf-c-login__main-body > p').forEach(function(p){
-        // Solo ocultar EXACTAMENTE ese mensaje (texto trimmeado). No tocar otros
-        // párrafos que podrían ser mensajes de error/ayuda de otras pantallas.
-        if(p.textContent && p.textContent.trim().match(/^Inicia sesión para continuar/i)){
+    // REGLA CRÍTICA 2026-07-10 (revisada 2026-07-28): Ocultar "Inicia sesión para
+    // continuar a X" en la pantalla de login. Ese mensaje es redundante con el botón
+    // "Iniciar sesión" y empujaba el contenido provocando un scroll en la 1ª pantalla.
+    // Solo aparece cuando entras vía una app (OAuth authorize a Starter, Plane…), NO
+    // en el login plano — por eso hay que probarlo con un flujo de app real.
+    //
+    // UBICACIÓN DOM REAL (Authentik 2026.2, verificado en sourcemap NV77J776.js.map):
+    // el <p> se renderiza como `<form class="pf-c-form"> > <p>` DENTRO del shadow root
+    // de <ak-stage-identification> — NO bajo ".pf-c-login__main-body". Por eso el
+    // selector antiguo ".pf-c-login__main-body > p" nunca lo encontraba, y las reglas
+    // CSS `ak-stage-identification p` tampoco (no cruzan ese shadow boundary anidado).
+    //
+    // SEGURIDAD (ver memoria flowhtml-css-recurring-regressions): consultamos TODOS los
+    // <p> del root, pero solo ocultamos los que EMPIEZAN con la frase exacta. Ningún
+    // mensaje de error/éxito/ayuda empieza así, por lo que es imposible que esto bloquee
+    // otros mensajes en esta ni en otras pantallas (a diferencia de un selector CSS
+    // amplio sobre <p>, que ha ocultado texto de error 5 veces).
+    root.querySelectorAll('p').forEach(function(p){
+        var t = p.textContent ? p.textContent.trim() : '';
+        if(t.match(/^Inicia sesión para continuar/i) || t.match(/^Log ?in to continue/i)){
             p.style.setProperty('display','none','important');
             p.style.setProperty('height','0','important');
             p.style.setProperty('padding','0','important');
@@ -1014,9 +1020,19 @@ new MutationObserver(function(){scan(document);}).observe(document.documentEleme
 
         /* alineaciones en tarjeta form */
         const fTitle = document.getElementById('cs-form-title');
-        if (fTitle) { fTitle.innerHTML = t.system_name; fTitle.style.textAlign = t.name_align; fTitle.style.display = t.show_system_name !== false ? 'block' : 'none'; }
+        if (fTitle) {
+            fTitle.innerHTML = t.system_name; fTitle.style.textAlign = t.name_align; fTitle.style.display = t.show_system_name !== false ? 'block' : 'none';
+            // #cs-form-title tiene `color: var(--cs-text-primary) !important` en el CSS
+            // (para el valor por defecto, incl. dark mode). Un inline style normal pierde
+            // contra ese !important; setProperty(...,'important') sí gana (misma capa de
+            // "author important", pero el inline style tiene mayor especificidad).
+            if (t.system_name_color) fTitle.style.setProperty('color', t.system_name_color, 'important');
+        }
         const fSub = document.getElementById('cs-form-subtitle');
-        if (fSub) { fSub.innerHTML = t.system_subtitle; fSub.style.textAlign = t.subtitle_align; fSub.style.display = t.show_system_subtitle !== false ? 'block' : 'none'; }
+        if (fSub) {
+            fSub.innerHTML = t.system_subtitle; fSub.style.textAlign = t.subtitle_align; fSub.style.display = t.show_system_subtitle !== false ? 'block' : 'none';
+            if (t.system_subtitle_color) fSub.style.setProperty('color', t.system_subtitle_color, 'important');
+        }
 
         /* Idioma forzado (forceLocale) - redirección limpia */
         if (t.expansion_config && t.expansion_config.localization && t.expansion_config.localization.forceLocale) {

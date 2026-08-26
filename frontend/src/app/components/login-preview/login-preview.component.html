@@ -28,14 +28,14 @@
         >
           @if (theme.show_system_name) {
             <div
-              class="font-extrabold text-3xl leading-none text-gray-900 mb-1.5 font-sans"
-              [style.color]="theme.primary_color"
+              class="font-extrabold text-3xl leading-none mb-1.5 font-sans"
+              [style.color]="theme.system_name_color"
               [style.textAlign]="theme.name_align"
               [innerHTML]="theme.system_name | safeHtml"
             ></div>
           }
           @if (theme.show_system_subtitle) {
-            <div class="text-sm text-gray-600 mb-5 font-sans" [style.textAlign]="theme.subtitle_align">
+            <div class="text-sm mb-5 font-sans" [style.color]="theme.system_subtitle_color" [style.textAlign]="theme.subtitle_align">
               {{ theme.system_subtitle }}
             </div>
           }

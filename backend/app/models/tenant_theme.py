@@ -43,7 +43,13 @@ class TenantTheme(Base):
         String(150), default="CASMARTS<br>Core", nullable=False
     )
     system_subtitle: Mapped[str] = mapped_column(
-        String(255), default="Gobierno del estado de México", nullable=False
+        String(255), default="Autenticación Unificada", nullable=False
+    )
+    system_name_color: Mapped[str] = mapped_column(
+        String(7), default="#111827", nullable=False
+    )
+    system_subtitle_color: Mapped[str] = mapped_column(
+        String(7), default="#374151", nullable=False
     )
 
     # Disposición y Alineaciones

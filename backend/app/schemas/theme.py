@@ -50,7 +50,9 @@ class ThemeBase(BaseModel):
     """
     display_name: str = Field(..., max_length=150)
     system_name: str = Field("CASMARTS<br>Core", max_length=150)
-    system_subtitle: str = Field("Gobierno del estado de México", max_length=255)
+    system_subtitle: str = Field("Autenticación Unificada", max_length=255)
+    system_name_color: str = Field("#111827", pattern=HEX_COLOR_REGEX)
+    system_subtitle_color: str = Field("#374151", pattern=HEX_COLOR_REGEX)
     layout_position: Literal["left", "center", "right"] = "left"
     name_align: Literal["left", "center", "right"] = "center"
     subtitle_align: Literal["left", "center", "right"] = "center"
@@ -133,6 +135,8 @@ class ThemeUpdate(BaseModel):
     display_name: Optional[str] = Field(None, max_length=150)
     system_name: Optional[str] = Field(None, max_length=150)
     system_subtitle: Optional[str] = Field(None, max_length=255)
+    system_name_color: Optional[str] = Field(None, pattern=HEX_COLOR_REGEX)
+    system_subtitle_color: Optional[str] = Field(None, pattern=HEX_COLOR_REGEX)
     layout_position: Optional[Literal["left", "center", "right"]] = None
     name_align: Optional[Literal["left", "center", "right"]] = None
     subtitle_align: Optional[Literal["left", "center", "right"]] = None
@@ -238,6 +242,8 @@ class ThemePublic(BaseModel):
     display_name: str
     system_name: str
     system_subtitle: str
+    system_name_color: str = "#111827"
+    system_subtitle_color: str = "#374151"
     layout_position: str
     name_align: str
     subtitle_align: str
