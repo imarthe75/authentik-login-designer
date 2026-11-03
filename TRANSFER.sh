@@ -4,9 +4,9 @@
 
 set -e
 
-REMOTE_HOST="10.4.3.208"
-REMOTE_USER="authentik"
-REMOTE_SSH_KEY="Wutb43r2"  # SSH password/key
+REMOTE_HOST="${REMOTE_HOST:-10.4.3.208}"
+REMOTE_USER="${REMOTE_USER:-authentik}"
+REMOTE_SSH_KEY="${REMOTE_SSH_KEY:?Set REMOTE_SSH_KEY env var}"  # SSH password/key
 REMOTE_PATH="/opt/authentik-login-designer"
 LOCAL_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -68,10 +68,10 @@ echo "📝 Creating .env file..."
 sshpass -p "$REMOTE_SSH_KEY" ssh -o StrictHostKeyChecking=no \
   "$REMOTE_USER@$REMOTE_HOST" \
   "cat > $REMOTE_PATH/.env << 'EOF'
-DATABASE_URL=postgresql+asyncpg://designer_user:securepass123@postgres:5432/authentik_login_designer
+DATABASE_URL=postgresql+asyncpg://designer_user:CHANGE_ME_SECURE_PASSWORD@postgres:5432/authentik_login_designer
 VALKEY_URL=redis://valkey:6379/1
 CORS_ORIGINS=http://localhost:3000,https://auth.casmart.internal,http://localhost:80
-ADMIN_API_KEY=casmarts_admin_super_secret_key_123
+ADMIN_API_KEY=CHANGE_ME_ADMIN_API_KEY
 PUBLIC_API_BASE_URL=https://auth.casmart.internal
 EOF"
 

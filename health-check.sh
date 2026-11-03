@@ -49,7 +49,7 @@ fi
 # 3. Backend themes endpoint (requires admin key)
 echo ""
 echo "📚 API Endpoints:"
-admin_key="casmarts_admin_super_secret_key_123"
+admin_key="${ADMIN_API_KEY:-CHANGE_ME_ADMIN_API_KEY}"
 themes_resp=$(curl -s -H "X-Admin-Key: $admin_key" "$API_BASE/api/v1/themes")
 
 if echo "$themes_resp" | grep -q "\[\]" || echo "$themes_resp" | grep -q "id"; then

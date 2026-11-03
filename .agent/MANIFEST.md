@@ -237,9 +237,9 @@ cd /opt/authentik-login-designer
 
 | Setting | Value | Notes |
 |---------|-------|-------|
-| Admin Key | `casmarts_admin_super_secret_key_123` | ⚠️ Change in production |
+| Admin Key | `CHANGE_ME_ADMIN_API_KEY` | ⚠️ Change in production |
 | DB User | `designer_user` | |
-| DB Password | `securepass123` | ⚠️ Change in production |
+| DB Password | `CHANGE_ME_SECURE_PASSWORD` | ⚠️ Change in production |
 | DB Name | `authentik_login_designer` | |
 | DB Host | `postgres` (Docker) | |
 | Cache URL | `redis://valkey:6379/1` | |

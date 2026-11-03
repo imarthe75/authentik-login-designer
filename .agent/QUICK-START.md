@@ -115,12 +115,12 @@ chmod +x health-check.sh
 ./health-check.sh https://auth.casmart.internal
 
 # Or manual tests
-curl -H "X-Admin-Key: casmarts_admin_super_secret_key_123" \
+curl -H "X-Admin-Key: ${ADMIN_API_KEY}" \
   https://auth.casmart.internal/api/v1/themes
 
 # Create a test theme
 curl -X POST \
-  -H "X-Admin-Key: casmarts_admin_super_secret_key_123" \
+  -H "X-Admin-Key: ${ADMIN_API_KEY}" \
   -H "Content-Type: application/json" \
   -d '{
     "authentik_flow_slug": "default-authentication-flow",

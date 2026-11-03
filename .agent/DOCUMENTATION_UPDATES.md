@@ -48,9 +48,9 @@ La documentación se ha actualizado para reflejar que el proyecto está hosted e
 ### Seguridad - Cambios Clave
 
 ✅ **Removidas credenciales hardcodeadas de documentación:**
-- `casmarts_admin_super_secret_key_123` → `${ADMIN_API_KEY}`
-- `securepass123` → `${DB_PASSWORD}`
-- SSH password `Wutb43r2` → uso de SSH key o sshpass dinámico
+- `<ADMIN_API_KEY_REDACTED>` → `${ADMIN_API_KEY}`
+- `<DB_PASSWORD_REDACTED>` → `${DB_PASSWORD}`
+- SSH password `<SSH_PASSWORD_REDACTED>` → uso de SSH key o sshpass dinámico
 
 ✅ **Agregadas instrucciones para generar valores seguros:**
 - `openssl rand -hex 16` para Admin API Key
