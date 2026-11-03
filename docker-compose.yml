@@ -19,6 +19,17 @@ services:
       # era una práctica preexistente y no se tocó en este cambio).
       AUTHENTIK_HOST: http://casmarts-core-authentik-server:9000
       AUTHENTIK_API_TOKEN: ${AUTHENTIK_API_TOKEN}
+      # Secreto del webhook de eventos reales (routers/authentik_events.py) —
+      # debe coincidir con el configurado en el NotificationTransport de
+      # Authentik que apunta a este backend.
+      AUTHENTIK_WEBHOOK_SECRET: ${AUTHENTIK_WEBHOOK_SECRET:-}
+      # SMTP para correos de prueba y correos reales disparados por eventos.
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_TLS: ${SMTP_TLS:-true}
     # Sin publicar en el host: el gateway lo alcanza via DNS de Docker
     # (authentik-login-designer-backend:8000 en identity-network). Publicarlo
     # en 0.0.0.0:8000 permitía saltarse el gateway (sin TLS) por completo —
@@ -28,6 +39,10 @@ services:
     volumes:
       - ./backend:/app
       - ../core-casmarts/data/authentik/custom-templates:/shared/authentik/templates
+      # Necesario para _push_favicon_to_authentik_brand (Fase 1 de la
+      # paridad con Manager): ahí se escribe el favicon.* que luego se
+      # referencia en authentik_brands_brand.branding_favicon.
+      - ../core-casmarts/data/authentik/media/public:/shared/authentik/media/public
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     networks:
       - identity-network

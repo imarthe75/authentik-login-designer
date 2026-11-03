@@ -1,0 +1,58 @@
+<div class="space-y-4">
+  @if (error()) {
+  <div class="px-3 py-2 border border-red-300 rounded-lg text-xs text-red-600 bg-red-50">
+    ⚠️ {{ error() }}
+  </div>
+  }
+
+  <div class="space-y-2">
+    <span class="block text-xs font-bold text-gray-500 uppercase tracking-wider">Aplicaciones de este tenant</span>
+    @if (loading()) {
+    <p class="text-xs text-gray-400">Cargando…</p>
+    } @else if (linked().length === 0) {
+    <p class="text-xs text-gray-400">Sin aplicaciones enlazadas todavía.</p>
+    } @else {
+    <div class="space-y-1.5">
+      @for (link of linked(); track link.id) {
+      <div class="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-2.5 py-1.5">
+        <div class="flex flex-col">
+          <span class="text-xs font-semibold text-gray-700">{{ link.application_name || link.application_slug }}</span>
+          <span class="text-[10px] text-gray-400">
+            {{ link.application_slug }} · {{ link.link_source === 'group_convention' ? 'auto (grupo)' : 'manual' }}
+          </span>
+        </div>
+        <button type="button" (click)="unlink(link)" [disabled]="busySlug() === link.application_slug"
+          class="text-[10px] font-semibold text-red-500 hover:underline disabled:opacity-50">
+          Quitar
+        </button>
+      </div>
+      }
+    </div>
+    }
+  </div>
+
+  @if (unassigned().length > 0) {
+  <div class="space-y-2">
+    <span class="block text-xs font-bold text-amber-600 uppercase tracking-wider">
+      Sin asignar a ningún tenant ({{ unassigned().length }})
+    </span>
+    <p class="text-[10px] text-gray-400 leading-relaxed">
+      No se detectó un grupo de convención para estas apps en Authentik — asígnalas a mano.
+    </p>
+    <div class="space-y-1.5">
+      @for (app of unassigned(); track app.slug) {
+      <div class="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+        <div class="flex flex-col">
+          <span class="text-xs font-semibold text-gray-700">{{ app.name }}</span>
+          <span class="text-[10px] text-gray-400">{{ app.slug }}</span>
+        </div>
+        <button type="button" (click)="assign(app)" [disabled]="busySlug() === app.slug"
+          class="text-[10px] font-semibold text-blue-600 hover:underline disabled:opacity-50">
+          Asignar a este tenant
+        </button>
+      </div>
+      }
+    </div>
+  </div>
+  }
+</div>

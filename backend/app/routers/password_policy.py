@@ -37,6 +37,10 @@ _AUTHENTIK_EXPIRY_TARGET_STAGE_NAME = "default-authentication-password"
 # y new_account (ambos redirigen al flujo password-recovery).
 _AUTHENTIK_EMAIL_STAGE_NAME = "casmarts-smtp-gmail"
 
+# ReputationPolicy que aplica el bloqueo real por intentos fallidos — creada
+# por casmarts-event-webhooks.yaml, atada a default-authentication-identification.
+_AUTHENTIK_REPUTATION_POLICY_NAME = "casmarts-lockout-reputation"
+
 
 async def _get_or_create(db: AsyncSession) -> PasswordPolicy:
     result = await db.execute(select(PasswordPolicy).where(PasswordPolicy.id == SINGLETON_ID))
@@ -143,6 +147,39 @@ async def _push_to_authentik(policy: PasswordPolicy) -> tuple[bool, str | None]:
                 f"{settings.AUTHENTIK_HOST}/api/v3/stages/email/{email_stage_obj['pk']}/",
                 headers=headers,
                 json={"token_expiry": f"minutes={policy.link_expiry_minutes}"},
+            )
+            patch_resp.raise_for_status()
+
+            # 5. Intentos fallidos antes de bloquear la cuenta —
+            # ReputationPolicy('casmarts-lockout-reputation').threshold, ya
+            # sembrada por casmarts-event-webhooks.yaml. Cada login_failed
+            # resta 1 punto (authentik/policies/reputation/signals.py), así
+            # que threshold = -lockout_failed_attempts bloquea exactamente
+            # tras esa cantidad de intentos consecutivos.
+            resp = await client.get(
+                f"{settings.AUTHENTIK_HOST}/api/v3/policies/reputation/",
+                headers=headers,
+                params={"name": _AUTHENTIK_REPUTATION_POLICY_NAME},
+            )
+            resp.raise_for_status()
+            results = resp.json().get("results", [])
+            reputation_policy_obj = next((p for p in results if p.get("name") == _AUTHENTIK_REPUTATION_POLICY_NAME), None)
+            if not reputation_policy_obj:
+                return False, f"Se actualizó lo demás pero no se encontró la ReputationPolicy '{_AUTHENTIK_REPUTATION_POLICY_NAME}' para el umbral de bloqueo."
+
+            # El validador de ReputationPolicySerializer exige check_ip o
+            # check_username en TODA request, incluso PATCH parcial — hay que
+            # reenviar el objeto completo, no solo el campo que cambia (un
+            # PATCH con solo {"threshold": ...} devuelve "Se debe verificar
+            # la IP o el nombre de usuario").
+            patch_resp = await client.patch(
+                f"{settings.AUTHENTIK_HOST}/api/v3/policies/reputation/{reputation_policy_obj['pk']}/",
+                headers=headers,
+                json={
+                    "check_ip": reputation_policy_obj["check_ip"],
+                    "check_username": reputation_policy_obj["check_username"],
+                    "threshold": -policy.lockout_failed_attempts,
+                },
             )
             patch_resp.raise_for_status()
     except httpx.HTTPStatusError as e:

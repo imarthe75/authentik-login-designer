@@ -5,6 +5,7 @@ import ssl
 import smtplib
 import base64
 import httpx
+from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
@@ -120,9 +121,19 @@ async def verify_admin_key(
 async def _load_email_bodies(flow_slug: str, db: AsyncSession) -> Dict[str, EmailBodySchema]:
     """
     Carga todos los cuerpos de correo electrónico personalizados guardados para un flujo específico de tenant.
+
+    `tenant_id` filtra siempre al único tenant de este backend — la tabla es
+    compartida con authentik-login-manager (misma DB física) y su constraint
+    única real es (tenant_id, flow_slug, event_type), no (flow_slug,
+    event_type); sin este filtro, si Manager llega a tener otro tenant con
+    un cuerpo de correo para el mismo flow_slug+event_type, esta consulta
+    podría devolver una fila que no es de este tenant.
     """
     result = await db.execute(
-        select(TenantEmailBody).where(TenantEmailBody.flow_slug == flow_slug)
+        select(TenantEmailBody).where(
+            TenantEmailBody.tenant_id == uuid.UUID(settings.DEFAULT_TENANT_ID),
+            TenantEmailBody.flow_slug == flow_slug,
+        )
     )
     return {
         eb.event_type: EmailBodySchema(subject=eb.subject, body_html=eb.body_html)
@@ -138,11 +149,13 @@ async def _upsert_email_bodies(
     """
     Inserta o actualiza masivamente los cuerpos de correo de eventos asociados a un flujo de tenant.
     """
+    tenant_id = uuid.UUID(settings.DEFAULT_TENANT_ID)
     for event_type, body in bodies.items():
         if event_type not in EMAIL_EVENT_TYPES:
             continue
         result = await db.execute(
             select(TenantEmailBody).where(
+                TenantEmailBody.tenant_id == tenant_id,
                 TenantEmailBody.flow_slug == flow_slug,
                 TenantEmailBody.event_type == event_type
             )
@@ -154,6 +167,7 @@ async def _upsert_email_bodies(
             db.add(existing)
         else:
             db.add(TenantEmailBody(
+                tenant_id=tenant_id,
                 flow_slug=flow_slug,
                 event_type=event_type,
                 subject=body.subject,
@@ -162,13 +176,90 @@ async def _upsert_email_bodies(
 
 
 def _build_theme_response_with_email(
-    db_theme: TenantTheme, email_bodies: Dict[str, EmailBodySchema]
+    db_theme: TenantTheme,
+    email_bodies: Dict[str, EmailBodySchema],
+    favicon_sync: Optional[tuple[bool, Optional[str]]] = None,
 ) -> ThemeResponseWithEmail:
     """
     Construye el esquema de respuesta que asocia la configuración del tema con los cuerpos de correo.
     """
     data = {c.name: getattr(db_theme, c.name) for c in db_theme.__table__.columns}
-    return ThemeResponseWithEmail(**data, email_bodies=email_bodies)
+    extra = {}
+    if favicon_sync is not None:
+        extra["favicon_synced_to_authentik"], extra["favicon_sync_error"] = favicon_sync
+    return ThemeResponseWithEmail(**data, email_bodies=email_bodies, **extra)
+
+
+# Directorio de media de Authentik, compartido vía el mismo volumen Docker
+# que ya monta custom-templates (ver docker-compose.yml). Los campos
+# branding_* del Brand nativo de Authentik son TextField planos: guardan
+# solo el nombre de archivo, resuelto por Authentik contra este volumen.
+_FAVICON_MEDIA_DIR = Path("/shared/authentik/media/public")
+
+_FAVICON_MIME_EXT = {
+    "image/png": "png",
+    "image/x-icon": "ico",
+    "image/gif": "gif",
+    "image/webp": "webp",
+    "image/jpeg": "jpg",
+}
+
+
+async def _push_favicon_to_authentik_brand(tenant_id: str, favicon_base64: Optional[str]) -> tuple[bool, Optional[str]]:
+    """
+    Empuja el favicon del tema GLOBAL (authentik_app_slug=NULL) al Brand
+    nativo de Authentik (authentik_brands_brand.branding_favicon, por
+    dominio) — así lo sirve el propio base/skeleton.html sin depender de
+    nuestro template. El favicon de un tema por-APP no tiene equivalente
+    nativo (Brand es por dominio, no por app) y sigue solo por el mecanismo
+    de template/JS (ver login.html.j2, función applyFavicon).
+
+    Nunca lanza — devuelve (ok, error) para que el caller persista el cambio
+    local igual aunque Authentik esté inalcanzable (mismo patrón que
+    password_policy._push_to_authentik).
+    """
+    if not favicon_base64:
+        return True, None
+
+    if not settings.AUTHENTIK_API_TOKEN or not settings.AUTHENTIK_HOST:
+        return False, "AUTHENTIK_API_TOKEN/AUTHENTIK_HOST no configurados en .env."
+
+    match = re.match(r"^data:(image/[a-zA-Z0-9\+\-\.]+);base64,(.+)$", favicon_base64.strip())
+    if not match:
+        return False, "El favicon guardado no es un data URI válido."
+
+    content_type = match.group(1).lower()
+    ext = _FAVICON_MIME_EXT.get(content_type)
+    if not ext:
+        return False, f"Tipo de imagen no soportado para favicon de Brand: {content_type}"
+
+    try:
+        image_bytes = base64.b64decode(match.group(2), validate=True)
+    except Exception as e:
+        return False, f"Error decodificando favicon: {e}"
+
+    filename = f"favicon-tenant-{tenant_id}.{ext}"
+    try:
+        _FAVICON_MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+        (_FAVICON_MEDIA_DIR / filename).write_bytes(image_bytes)
+    except OSError as e:
+        log.error(f"No se pudo escribir favicon en volumen de media de Authentik: {e}")
+        return False, f"Error escribiendo archivo de favicon: {e}"
+
+    headers = {"Authorization": f"Bearer {settings.AUTHENTIK_API_TOKEN}"}
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.patch(
+                f"{settings.AUTHENTIK_HOST}/api/v3/core/brands/{tenant_id}/",
+                headers=headers,
+                json={"branding_favicon": filename},
+            )
+            resp.raise_for_status()
+    except httpx.HTTPError as e:
+        log.error(f"Error empujando branding_favicon a Authentik Brand {tenant_id}: {e}")
+        return False, f"Error al aplicar el favicon en Authentik: {e}"
+
+    return True, None
 
 
 async def _update_authentik_scope_descriptions(expansion_config: Optional[dict]) -> None:
@@ -232,6 +323,13 @@ async def list_authentik_applications(
         return []
 
 
+@router.get("/font-presets", dependencies=[Depends(verify_admin_key)])
+async def list_font_presets():
+    """Lista curada de fuentes seleccionables (ConfigPanel del frontend)."""
+    from app.font_presets import FONT_PRESETS
+    return list(FONT_PRESETS.values())
+
+
 @router.get("", response_model=List[ThemeResponse], dependencies=[Depends(verify_admin_key)])
 async def list_themes(
     skip: int = Query(0, ge=0),
@@ -278,6 +376,12 @@ async def upsert_theme(theme_in: ThemeCreate, db: AsyncSession = Depends(get_db)
 
     await _update_authentik_scope_descriptions(db_theme.expansion_config)
 
+    favicon_sync = None
+    if not db_theme.authentik_app_slug:
+        favicon_sync = await _push_favicon_to_authentik_brand(str(db_theme.tenant_id), db_theme.favicon_base64)
+        if not favicon_sync[0]:
+            log.warning("Favicon guardado en DB pero no sincronizado a Authentik Brand: %s", favicon_sync[1])
+
     await cache.delete(f"theme:{db_theme.authentik_flow_slug}:global")
     if db_theme.authentik_app_slug:
         await cache.delete(f"theme:{db_theme.authentik_flow_slug}:{db_theme.authentik_app_slug}")
@@ -290,7 +394,7 @@ async def upsert_theme(theme_in: ThemeCreate, db: AsyncSession = Depends(get_db)
             pass
 
     email_bodies = await _load_email_bodies(db_theme.authentik_flow_slug, db)
-    return _build_theme_response_with_email(db_theme, email_bodies)
+    return _build_theme_response_with_email(db_theme, email_bodies, favicon_sync)
 
 
 def _strip_html_tags(text: str) -> str:
@@ -337,6 +441,7 @@ async def preview_email(
 
     eb_result = await db.execute(
         select(TenantEmailBody).where(
+            TenantEmailBody.tenant_id == uuid.UUID(settings.DEFAULT_TENANT_ID),
             TenantEmailBody.flow_slug == flow_slug,
             TenantEmailBody.event_type == event_type
         )
@@ -505,16 +610,32 @@ def _strip_header_injection(value: str) -> str:
     return re.sub(r'[\r\n\x00-\x08\x0b\x0c\x0e-\x1f]', '', value or '').strip()
 
 
-def _send_smtp(to_email: str, subject: str, html: str, logo_bytes: bytes, logo_mime: str) -> None:
+def _send_smtp(
+    to_email: str,
+    subject: str,
+    html: str,
+    logo_bytes: bytes,
+    logo_mime: str,
+    logo_bottom_bytes: bytes = b'',
+    logo_bottom_mime: str = 'image/png',
+) -> None:
     if not settings.SMTP_HOST or not settings.SMTP_USER:
         raise ValueError("SMTP no configurado — añadir SMTP_HOST, SMTP_USER y SMTP_PASSWORD al .env")
 
     to_email = _strip_header_injection(to_email)
     subject = _strip_header_injection(subject)
 
-    CID = 'logo_casmarts_cid'
+    # El HTML renderiza <img src="https://.../image/logo_top|logo_bottom...">
+    # (URL pública) — aquí se reemplaza por cid: y se adjunta inline, para no
+    # depender de que el cliente de correo del destinatario pueda resolver esa
+    # URL (más confiable que la URL pública sola, y evita el bloqueo que
+    # Outlook aplica a imágenes base64 embebidas directo en el HTML).
+    CID_TOP = 'logo_casmarts_top_cid'
+    CID_BOTTOM = 'logo_casmarts_bottom_cid'
     if logo_bytes:
-        html = re.sub(r'src="https://[^"]*logo_top[^"]*"', f'src="cid:{CID}"', html)
+        html = re.sub(r'src="https://[^"]*logo_top[^"]*"', f'src="cid:{CID_TOP}"', html)
+    if logo_bottom_bytes:
+        html = re.sub(r'src="https://[^"]*logo_bottom[^"]*"', f'src="cid:{CID_BOTTOM}"', html)
 
     outer = MIMEMultipart('related')
     outer['Subject'] = subject
@@ -528,8 +649,15 @@ def _send_smtp(to_email: str, subject: str, html: str, logo_bytes: bytes, logo_m
     if logo_bytes:
         subtype = logo_mime.split('/')[-1] if '/' in logo_mime else 'png'
         img = MIMEImage(logo_bytes, _subtype=subtype)
-        img.add_header('Content-ID', f'<{CID}>')
-        img.add_header('Content-Disposition', 'inline', filename=f'logo.{subtype}')
+        img.add_header('Content-ID', f'<{CID_TOP}>')
+        img.add_header('Content-Disposition', 'inline', filename=f'logo_top.{subtype}')
+        outer.attach(img)
+
+    if logo_bottom_bytes:
+        subtype = logo_bottom_mime.split('/')[-1] if '/' in logo_bottom_mime else 'png'
+        img = MIMEImage(logo_bottom_bytes, _subtype=subtype)
+        img.add_header('Content-ID', f'<{CID_BOTTOM}>')
+        img.add_header('Content-Disposition', 'inline', filename=f'logo_bottom.{subtype}')
         outer.attach(img)
 
     ctx = ssl.create_default_context()
@@ -539,6 +667,104 @@ def _send_smtp(to_email: str, subject: str, html: str, logo_bytes: bytes, logo_m
             srv.starttls(context=ctx)
         srv.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
         srv.sendmail(settings.SMTP_FROM or settings.SMTP_USER, [to_email], outer.as_string())
+
+
+def _format_link_expiry_text(minutes: int) -> str:
+    """Texto legible para el enlace de un solo uso (password_reset/new_account),
+    a partir de password_policies.link_expiry_minutes — evita que el correo
+    diga un valor fijo ("1 hora") que se desincronice del token_expiry real
+    configurado en Authentik (ver password_policy.py:_push_to_authentik)."""
+    if minutes % 60 == 0:
+        hours = minutes // 60
+        return f"{hours} hora" + ("s" if hours != 1 else "")
+    return f"{minutes} minuto" + ("s" if minutes != 1 else "")
+
+
+async def _get_link_expiry_minutes(db: AsyncSession) -> int:
+    from app.models.password_policy import PasswordPolicy, SINGLETON_ID
+    result = await db.execute(select(PasswordPolicy).where(PasswordPolicy.id == SINGLETON_ID))
+    policy = result.scalar_one_or_none()
+    return policy.link_expiry_minutes if policy else 60
+
+
+def render_event_email_html(
+    theme: TenantTheme,
+    tenant: Tenant,
+    event_type: str,
+    body_html: str,
+    subject: str,
+    logo_base64: Optional[str],
+    logo_url: Optional[str],
+    logo_bottom_base64: Optional[str],
+    logo_bottom_url: Optional[str],
+    cta_url: str,
+    tenant_name: str,
+    substitution_values: dict,
+) -> str:
+    """
+    Renderiza el wrapper Jinja de un evento + sustituye las variables {{ }}.
+    Compartido por send_test_email (datos de prueba) y por el receptor de
+    eventos reales de Authentik en authentik_events.py (datos reales del
+    webhook) — un solo lugar para la lógica de render, evita que ambos
+    caminos se desincronicen.
+
+    `substitution_values` acepta las claves: usuario_login, usuario_email,
+    nombre_usuario, nombre_usuario_nombre, nombre_usuario_apellido,
+    ip_origen, navegador, dispositivo, fecha_evento, fecha_hora_cambio,
+    realizado_por, aplicacion_nombre, aplicacion_slug, rol_asignado, token.
+    Las que no se pasen quedan vacías o con su default razonable — mejor que
+    inventar un dato falso en un correo real.
+    """
+    env_j2 = _build_email_jinja2_env()
+    tmpl = env_j2.get_template(f'{event_type}.html.j2')
+    html = tmpl.render(
+        theme=theme,
+        body_html=body_html,
+        subject=subject,
+        logo_base64=logo_base64,
+        logo_url=logo_url,
+        logo_bottom_base64=logo_bottom_base64,
+        logo_bottom_url=logo_bottom_url,
+        event_type=event_type,
+        cta_url=cta_url,
+        tenant_name=tenant_name,
+    )
+
+    current_year = datetime.now().year
+    sv = substitution_values
+    substitutions = {
+        '{{ url }}': cta_url,
+        '{{url_acceso}}': cta_url,
+        '{{ user.username }}': sv.get('usuario_login', ''),
+        '{{usuario_login}}': sv.get('usuario_login', ''),
+        '{{ user.email }}': sv.get('usuario_email', ''),
+        '{{usuario_email}}': sv.get('usuario_email', ''),
+        '{{nombre_usuario}}': sv.get('nombre_usuario', ''),
+        '{{nombre_usuario_nombre}}': sv.get('nombre_usuario_nombre', ''),
+        '{{nombre_usuario_apellido}}': sv.get('nombre_usuario_apellido', ''),
+        '{{ tenant.name }}': tenant_name,
+        '{{nombre_sistema}}': tenant_name,
+        '{{aplicacion_nombre}}': sv.get('aplicacion_nombre', 'Aplicación CaSmarts'),
+        '{{aplicacion_slug}}': sv.get('aplicacion_slug', 'default'),
+        '{{ip_origen}}': sv.get('ip_origen', 'No disponible'),
+        '{{navegador}}': sv.get('navegador', 'No disponible'),
+        '{{dispositivo}}': sv.get('dispositivo', 'No disponible'),
+        '{{ token }}': sv.get('token', ''),
+        '{{fecha_evento}}': sv.get('fecha_evento') or datetime.now().strftime('%d/%m/%Y %H:%M'),
+        '{{fecha_hora_cambio}}': sv.get('fecha_hora_cambio') or datetime.now().isoformat(),
+        '{{anio}}': str(current_year),
+        '{{empresa_nombre}}': tenant.name,
+        '{{contacto_soporte}}': 'soporte@casmarts.internal',
+        '{{realizado_por}}': sv.get('realizado_por', ''),
+        '{{footer_legal}}': 'Este mensaje es confidencial y para uso exclusivo del destinatario. Si lo recibiste por error, notifícalo y elimínalo.',
+        '{{rol_asignado}}': sv.get('rol_asignado', 'Usuario estándar'),
+        '{{color_primario}}': theme.primary_color or '#4272A5',
+        '{{logo_url}}': logo_url or '',
+        '{{enlace_expiracion_texto}}': sv.get('enlace_expiracion_texto') or _format_link_expiry_text(60),
+    }
+    for var, val in substitutions.items():
+        html = html.replace(var, val)
+    return html
 
 
 @router.post("/{flow_slug}/emails/test", dependencies=[Depends(verify_admin_key)])
@@ -569,6 +795,7 @@ async def send_test_email(
 
     # Cuerpo del correo desde BD (vacío → usa defaults del template)
     eb = await db.execute(select(TenantEmailBody).where(
+        TenantEmailBody.tenant_id == uuid.UUID(settings.DEFAULT_TENANT_ID),
         TenantEmailBody.flow_slug == flow_slug,
         TenantEmailBody.event_type == body.event_type
     ))
@@ -709,6 +936,12 @@ async def patch_theme(
     await db.commit()
     await db.refresh(db_theme)
 
+    favicon_sync = None
+    if not db_theme.authentik_app_slug:
+        favicon_sync = await _push_favicon_to_authentik_brand(str(db_theme.tenant_id), db_theme.favicon_base64)
+        if not favicon_sync[0]:
+            log.warning("Favicon guardado en DB pero no sincronizado a Authentik Brand: %s", favicon_sync[1])
+
     await cache.delete(f"theme:{flow_slug}")
     if cache.redis:
         try:
@@ -719,7 +952,7 @@ async def patch_theme(
             pass
 
     email_bodies = await _load_email_bodies(flow_slug, db)
-    return _build_theme_response_with_email(db_theme, email_bodies)
+    return _build_theme_response_with_email(db_theme, email_bodies, favicon_sync)
 
 
 @router.delete("/{flow_slug}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(verify_admin_key)])

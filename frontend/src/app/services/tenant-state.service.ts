@@ -5,15 +5,11 @@ import { ThemeApiService } from './theme-api.service';
 
 /**
  * Puerto Angular de TenantContext.tsx (manager/React). Resuelve el tenant
- * actual por hostname y expone la lista de tenants disponibles.
- *
- * BLOCKER conocido: el backend de authentik-login-designer no tiene montado
- * ningún router /api/v1/tenant/* (a diferencia del backend del manager, que
- * sí lo expone en app/routers/admin.py vía tenant_router). Este servicio
- * llama a esos mismos endpoints por si algún día se portan, pero hoy
- * resolverán en error de red / 404 — por diseño, cae siempre a
- * DEFAULT_TENANT igual que hace React (ver detectAndResolveTenant en
- * TenantContext.tsx), así que el resto de la UI nunca se rompe por esto.
+ * actual y expone la lista de tenants disponibles — contra un backend
+ * single-tenant (routers/tenant.py ya existe y siempre resuelve al mismo
+ * tenant fijo, ver settings.DEFAULT_TENANT_ID). El fallback a
+ * DEFAULT_TENANT se conserva igual por si la red falla, mismo criterio que
+ * detectAndResolveTenant en TenantContext.tsx (React).
  */
 @Injectable({ providedIn: 'root' })
 export class TenantStateService {

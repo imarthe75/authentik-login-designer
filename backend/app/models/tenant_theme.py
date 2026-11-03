@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Float, Integer, Boolean, DateTime, Text, JSON, func
+from sqlalchemy import String, Float, Integer, Boolean, DateTime, Text, JSON, func, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
@@ -25,7 +25,10 @@ class TenantTheme(Base):
     # diseño, así que se rellena con settings.DEFAULT_TENANT_ID al crear (ver
     # routers/admin.py:upsert_theme) en vez de resolverse dinámicamente.
     tenant_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey('tenants.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True
     )
     # Slugs de vinculación con flujos y aplicaciones de Authentik
     authentik_flow_slug: Mapped[str] = mapped_column(
@@ -121,12 +124,49 @@ class TenantTheme(Base):
     logo_bottom_base64: Mapped[str | None] = mapped_column(
         Text, nullable=True
     )
+    favicon_base64: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )
     logo_top_text: Mapped[str | None] = mapped_column(
         Text, nullable=True
     )
     logo_bottom_text: Mapped[str | None] = mapped_column(
         Text, nullable=True
     )
+    logo_top_text_color: Mapped[str] = mapped_column(
+        String(7), default="#FFFFFF", server_default="#FFFFFF", nullable=False
+    )
+    logo_top_text_size: Mapped[int] = mapped_column(
+        Integer, default=24, server_default="24", nullable=False
+    )
+    logo_bottom_text_color: Mapped[str] = mapped_column(
+        String(7), default="#FFFFFF", server_default="#FFFFFF", nullable=False
+    )
+    logo_bottom_text_size: Mapped[int] = mapped_column(
+        Integer, default=20, server_default="20", nullable=False
+    )
+    # Etiquetas de campo ("Correo o Nombre usuario", "Contraseña") — antes
+    # fijas en rgba(0,0,0,0.7) sin importar el tema, por lo que se volvían
+    # ilegibles en tarjetas de fondo oscuro.
+    field_label_color: Mapped[str] = mapped_column(
+        String(7), default="#374151", server_default="#374151", nullable=False
+    )
+
+    # Tipografía (heading = system_name/logos, body = formulario/labels).
+    # Keys deben existir en app.font_presets.FONT_PRESETS. Las entradas
+    # *_base64/_name solo se usan cuando el preset elegido es de licencia
+    # propia (requires_upload=True) — no se puede hotlinkear esas fuentes
+    # desde un CDN público.
+    font_heading: Mapped[str] = mapped_column(
+        String(30), default="inter", server_default="inter", nullable=False
+    )
+    font_body: Mapped[str] = mapped_column(
+        String(30), default="inter", server_default="inter", nullable=False
+    )
+    custom_font_heading_base64: Mapped[str | None] = mapped_column(Text, nullable=True)
+    custom_font_heading_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    custom_font_body_base64: Mapped[str | None] = mapped_column(Text, nullable=True)
+    custom_font_body_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     # Políticas de Privacidad y Estado Activo
     privacy_pdf_url: Mapped[str | None] = mapped_column(
@@ -174,8 +214,11 @@ class TenantTheme(Base):
     show_field_labels: Mapped[bool] = mapped_column(
         Boolean, server_default='true', nullable=False
     )
+    # Corregido 2026-11-03: estaba en 'true', invertido respecto al default
+    # real de la tabla compartida (y de Manager) — alinea con la fila
+    # tal como la ve authentik-login-manager.
     show_app_message: Mapped[bool] = mapped_column(
-        Boolean, server_default='true', nullable=False
+        Boolean, server_default='false', nullable=False
     )
 
     # Configuración de Plantillas de Email y Mensajes
@@ -185,6 +228,10 @@ class TenantTheme(Base):
     email_template_type: Mapped[str] = mapped_column(
         String(20), server_default='integrated', nullable=False
     )
+    # NOTA 2026-11-03: Manager declara este campo nullable=True en su propio
+    # modelo, pero la columna real en la DB compartida es NOT NULL (verificado
+    # con \d tenant_themes) — la declaración original de este archivo ya
+    # estaba correcta, no se cambia solo para "igualar" a Manager.
     custom_messages: Mapped[dict] = mapped_column(
         JSON, nullable=False, server_default='{}'
     )

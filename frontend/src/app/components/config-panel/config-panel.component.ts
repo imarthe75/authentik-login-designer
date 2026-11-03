@@ -2,13 +2,14 @@ import { Component, Input, Output, EventEmitter, ViewChild, ElementRef, signal, 
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
-import { ThemeApiService } from '../../services/theme-api.service';
+import { ThemeApiService, BrandPaletteSwatch } from '../../services/theme-api.service';
 import { firstValueFrom } from 'rxjs';
 import {
-  Theme, SavePhase, EmailBody,
+  Theme, SavePhase, EmailBody, FontPreset,
 } from '../../models/theme.model';
 
 import { ExpansionSettingsManagerComponent } from '../expansion-settings/expansion-settings.component';
+import { ApplicationsPanelComponent } from '../applications-panel/applications-panel.component';
 
 /**
  * Componente que representa el panel lateral de diseño y configuración del login en Angular (Designer).
@@ -17,7 +18,7 @@ import { ExpansionSettingsManagerComponent } from '../expansion-settings/expansi
 @Component({
   selector: 'app-config-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule, ExpansionSettingsManagerComponent],
+  imports: [CommonModule, FormsModule, LucideAngularModule, ExpansionSettingsManagerComponent, ApplicationsPanelComponent],
   templateUrl: './config-panel.component.html'
 })
 export class ConfigPanelComponent implements OnInit {
@@ -38,8 +39,9 @@ export class ConfigPanelComponent implements OnInit {
 
   /** Evento emitido cuando un campo del tema es modificado. */
   @Output() updateField = new EventEmitter<{ key: keyof Theme; value: any }>();
-  /** Evento emitido al seleccionar y subir una imagen (logo o fondo). */
-  @Output() uploadFile = new EventEmitter<{ key: 'logo_top_base64'|'logo_bottom_base64'|'bg_image_base64'; file: File }>();
+  /** Evento emitido al seleccionar y subir una imagen (logo, fondo, favicon o fuente personalizada). */
+  @Output() uploadFile = new EventEmitter<{ key: 'logo_top_base64'|'logo_bottom_base64'|'bg_image_base64'
+    |'favicon_base64'|'custom_font_heading_base64'|'custom_font_body_base64'; file: File }>();
   /** Evento emitido para guardar y persistir los cambios actuales. */
   @Output() save = new EventEmitter<void>();
   /** Evento emitido para reintentar el despliegue tras un error. */
@@ -55,6 +57,16 @@ export class ConfigPanelComponent implements OnInit {
   @ViewChild('logoBottomInput') logoBottomRef!: ElementRef<HTMLInputElement>;
   @ViewChild('bgImgInput') bgImgRef!: ElementRef<HTMLInputElement>;
   @ViewChild('pdfInput') pdfRef!: ElementRef<HTMLInputElement>;
+  @ViewChild('faviconInput') faviconRef!: ElementRef<HTMLInputElement>;
+  @ViewChild('customFontHeadingInput') customFontHeadingRef!: ElementRef<HTMLInputElement>;
+  @ViewChild('customFontBodyInput') customFontBodyRef!: ElementRef<HTMLInputElement>;
+
+  /** Catálogo de fuentes seleccionables (selector de tipografía). */
+  fontPresets = signal<FontPreset[]>([]);
+
+  getFontPreset(key: string | null | undefined): FontPreset | undefined {
+    return this.fontPresets().find(f => f.key === key);
+  }
 
   readonly PREDEFINED_COLORS = [
     { name: 'Civika', color: '#4272A5', hover: '#2d5580' },
@@ -64,6 +76,11 @@ export class ConfigPanelComponent implements OnInit {
     { name: 'Morado', color: '#5e35b1', hover: '#7c4dff' },
     { name: 'Gris', color: '#424242', hover: '#616161' },
   ];
+
+  /** Paleta real del tenant si tiene una definida; si no, cae a los predefinidos genéricos. */
+  get paletteToShow(): BrandPaletteSwatch[] {
+    return this.tenantBrandPalette().length > 0 ? this.tenantBrandPalette() : this.PREDEFINED_COLORS;
+  }
 
   readonly TAB_CONTENT = {
     general: true,
@@ -83,18 +100,83 @@ export class ConfigPanelComponent implements OnInit {
   defaultAppUrlSaving = signal(false);
   defaultAppUrlStatus = signal<{ ok: boolean; msg: string } | null>(null);
 
+  // Marca del tenant: color primario/secundario propios + paleta de swatches
+  // sugeridas (ver TenantBrandingTab.tsx del manager) — mismo endpoint que
+  // default_app_url (GET/PATCH /api/v1/tenant/settings), config a nivel
+  // tenant, no por tema/app.
+  tenantPrimaryColor = signal('#4272A5');
+  tenantSecondaryColor = signal('#2d5580');
+  tenantBrandPalette = signal<BrandPaletteSwatch[]>([]);
+  tenantColorsSaving = signal(false);
+  tenantPaletteSaving = signal(false);
+  tenantBrandingStatus = signal<{ ok: boolean; msg: string } | null>(null);
+
   ngOnInit(): void {
     this.api.getTenantSettings().subscribe({
-      next: (res) => this.defaultAppUrl.set(res.default_app_url ?? ''),
+      next: (res) => {
+        this.defaultAppUrl.set(res.default_app_url ?? '');
+        this.tenantPrimaryColor.set(res.primary_color || '#4272A5');
+        this.tenantSecondaryColor.set(res.secondary_color || '#2d5580');
+        this.tenantBrandPalette.set(res.brand_palette || []);
+      },
       error: (err) => console.error('No se pudo cargar la config del tenant', err),
     });
+    this.api.getFontPresets().subscribe({
+      next: (presets) => this.fontPresets.set(presets),
+      error: (err) => console.error('No se pudo cargar el catálogo de fuentes', err),
+    });
+  }
+
+  async saveTenantColors(): Promise<void> {
+    this.tenantColorsSaving.set(true);
+    this.tenantBrandingStatus.set(null);
+    try {
+      await firstValueFrom(this.api.updateTenantSettings({
+        primary_color: this.tenantPrimaryColor(),
+        secondary_color: this.tenantSecondaryColor(),
+      }));
+      this.tenantBrandingStatus.set({ ok: true, msg: '✅ Colores guardados' });
+    } catch (err: any) {
+      this.tenantBrandingStatus.set({ ok: false, msg: `❌ ${err?.error?.detail || err?.message || 'Error al guardar'}` });
+    } finally {
+      this.tenantColorsSaving.set(false);
+    }
+  }
+
+  addPaletteSwatch(): void {
+    this.tenantBrandPalette.update(p => [...p, { name: '', color: '#4272A5', hover: '#2d5580' }]);
+  }
+
+  updatePaletteSwatch(index: number, field: keyof BrandPaletteSwatch, value: string): void {
+    this.tenantBrandPalette.update(p => p.map((s, i) => i === index ? { ...s, [field]: value } : s));
+  }
+
+  removePaletteSwatch(index: number): void {
+    this.tenantBrandPalette.update(p => p.filter((_, i) => i !== index));
+  }
+
+  async saveTenantPalette(): Promise<void> {
+    this.tenantPaletteSaving.set(true);
+    this.tenantBrandingStatus.set(null);
+    try {
+      const cleaned = this.tenantBrandPalette().filter(s => s.name.trim() !== '');
+      const saved = await firstValueFrom(this.api.updateTenantSettings({
+        brand_palette: cleaned.length > 0 ? cleaned : null,
+      }));
+      this.tenantBrandPalette.set(saved.brand_palette || []);
+      this.tenantBrandingStatus.set({ ok: true, msg: '✅ Paleta guardada' });
+    } catch (err: any) {
+      this.tenantBrandingStatus.set({ ok: false, msg: `❌ ${err?.error?.detail || err?.message || 'Error al guardar'}` });
+    } finally {
+      this.tenantPaletteSaving.set(false);
+    }
   }
 
   async saveDefaultAppUrl(): Promise<void> {
     this.defaultAppUrlSaving.set(true);
     this.defaultAppUrlStatus.set(null);
     try {
-      await firstValueFrom(this.api.updateTenantSettings(this.defaultAppUrl().trim() || null));
+      await firstValueFrom(this.api.updateTenantSettings({ default_app_url: this.defaultAppUrl().trim() || null }));
       this.defaultAppUrlStatus.set({ ok: true, msg: '✅ Guardado' });
     } catch (err: any) {
       this.defaultAppUrlStatus.set({ ok: false, msg: `❌ ${err?.error?.detail || err?.message || 'Error al guardar'}` });
@@ -190,7 +272,20 @@ export class ConfigPanelComponent implements OnInit {
     this.pdfRef?.nativeElement.click();
   }
 
-  handleFileChange(key: 'logo_top_base64'|'logo_bottom_base64'|'bg_image_base64', event: Event): void {
+  triggerFaviconInput(): void {
+    this.faviconRef?.nativeElement.click();
+  }
+
+  triggerCustomFontHeadingInput(): void {
+    this.customFontHeadingRef?.nativeElement.click();
+  }
+
+  triggerCustomFontBodyInput(): void {
+    this.customFontBodyRef?.nativeElement.click();
+  }
+
+  handleFileChange(key: 'logo_top_base64'|'logo_bottom_base64'|'bg_image_base64'
+    |'favicon_base64'|'custom_font_heading_base64'|'custom_font_body_base64', event: Event): void {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) { alert('El tamaño máximo permitido para archivos es de 5MB.'); return; }

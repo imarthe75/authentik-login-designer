@@ -11,6 +11,9 @@ const DEFAULT_THEME: Theme = {
   system_subtitle: 'Autenticación Unificada',
   system_name_color: '#111827',
   system_subtitle_color: '#374151',
+  field_label_color: '#374151',
+  font_heading: 'inter',
+  font_body: 'inter',
   layout_position: 'left',
   name_align: 'center',
   subtitle_align: 'center',
@@ -162,7 +165,8 @@ export class ThemeStateService {
   }
 
   async uploadFileField(
-    key: 'logo_top_base64' | 'logo_bottom_base64' | 'bg_image_base64',
+    key: 'logo_top_base64' | 'logo_bottom_base64' | 'bg_image_base64'
+      | 'favicon_base64' | 'custom_font_heading_base64' | 'custom_font_body_base64',
     file: File
   ): Promise<void> {
     try {

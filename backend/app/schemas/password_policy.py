@@ -35,6 +35,7 @@ class PasswordPolicyBase(BaseModel):
     expiry_enabled: bool = False
     expiry_days: int = Field(90, ge=1, le=3650)
     link_expiry_minutes: int = Field(60, ge=1, le=10080)
+    lockout_failed_attempts: int = Field(5, ge=1, le=50)
 
     # symbol_charset NO pasa por sanitize_text: es un conjunto literal de
     # caracteres que Authentik usa para validar símbolos, no texto para
@@ -63,6 +64,7 @@ class PasswordPolicyUpdate(BaseModel):
     expiry_enabled: Optional[bool] = None
     expiry_days: Optional[int] = Field(None, ge=1, le=3650)
     link_expiry_minutes: Optional[int] = Field(None, ge=1, le=10080)
+    lockout_failed_attempts: Optional[int] = Field(None, ge=1, le=50)
 
     # symbol_charset NO pasa por sanitize_text: es un conjunto literal de
     # caracteres que Authentik usa para validar símbolos, no texto para

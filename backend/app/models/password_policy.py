@@ -47,6 +47,11 @@ class PasswordPolicy(Base):
     # con el texto informativo de los correos password_reset/new_account
     # (login-manager), que comparten ese mismo enlace/flujo.
     link_expiry_minutes: Mapped[int] = mapped_column(Integer, default=60, nullable=False)
+    # Intentos fallidos de login permitidos antes de bloquear la cuenta —
+    # sincronizado con ReputationPolicy('casmarts-lockout-reputation').threshold
+    # en Authentik (threshold = -lockout_failed_attempts; cada login_failed
+    # resta 1 punto, ver authentik/policies/reputation/signals.py).
+    lockout_failed_attempts: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(

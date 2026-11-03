@@ -1,12 +1,16 @@
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import engine, Base
 from app.cache import cache
 from app.routers.password_policy import router as password_policy_router
 from app.routers.auth import auth_router
+from app.routers.authentik_events import authentik_events_router
+from app.routers.email_sync import email_sync_router
 from app.routers import admin, public, tenant
 
 logging.basicConfig(level=logging.INFO)
@@ -57,10 +61,26 @@ async def security_headers_middleware(request: Request, call_next):
     response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
     return response
 
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    try:
+        body = await request.body()
+        import json as _json
+        parsed = _json.loads(body)
+        # Log only non-binary fields to avoid huge base64 dumps
+        safe = {k: v for k, v in parsed.items() if not isinstance(v, str) or len(v) < 200}
+        logger.error("422 on %s %s | errors=%s | body_safe=%s",
+                     request.method, request.url.path, exc.errors(), safe)
+    except Exception:
+        logger.error("422 on %s %s | errors=%s", request.method, request.url.path, exc.errors())
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+
 app.include_router(auth_router)
 app.include_router(admin.router)
 app.include_router(public.router)
 app.include_router(tenant.router)
+app.include_router(authentik_events_router)
+app.include_router(email_sync_router)
 app.include_router(password_policy_router)
 
 @app.get("/health", status_code=status.HTTP_200_OK, tags=["Health"])
