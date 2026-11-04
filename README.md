@@ -64,6 +64,10 @@ chmod +x deploy.sh && ./deploy.sh
 - **[QUICK-START.md](QUICK-START.md)** — 5-minute setup
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** — Full step-by-step guide with SSL/DNS
 - **[MANIFEST.md](MANIFEST.md)** — Complete project inventory
+- **[docs/SECURITY_AUDIT_2026-11-04.md](docs/SECURITY_AUDIT_2026-11-04.md)** — Full ecosystem
+  security/compliance audit (2026-11-04): scoped DB role (`theme_app_user`, never the Postgres
+  superuser), CASMART audit standard installed on the shared tables (canonical columns + hash-chain
+  log), `timestamptz` conversion, Vault secret de-hardcoding, gateway headers/CORS fixes.
 
 ## 🔗 Endpoints
 

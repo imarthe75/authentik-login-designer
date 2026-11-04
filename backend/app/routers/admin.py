@@ -1190,17 +1190,21 @@ async def deploy_theme(flow_slug: str, db: AsyncSession = Depends(get_db)):
     }
 
 
-@router.get("/blueprint/download")
-async def download_brand_blueprint(
-    brand_name: str = Query(..., description="Nombre de la marca/brand"),
-    domain: str = Query(..., description="Dominio de la marca")
-):
-    """
-    Genera y descarga un Blueprint de Authentik para inicializar una nueva marca,
-    aprovisionar sus dominios y la estructura de grupos de usuarios inicial.
-    """
-    brand_slug = brand_name.lower().replace(" ", "-").strip()
-    yaml_content = f"""version: 1
+# brand_name/domain se interpolan directo en un YAML de blueprint que puede
+# terminar aplicándose contra Authentik — sin esta allowlist, un nombre con
+# salto de línea/dos-puntos podría inyectar entradas de blueprint arbitrarias
+# (ej. otro `model:` con is_superuser). Mismo patrón que login-manager.
+_BLUEPRINT_NAME_RE = re.compile(r"^[A-Za-z0-9 ._\-]{1,150}$")
+_BLUEPRINT_DOMAIN_RE = re.compile(r"^[A-Za-z0-9.\-]{1,255}$")
+
+
+def _build_brand_blueprint_yaml(brand_name: str, domain: str) -> str:
+    if not _BLUEPRINT_NAME_RE.match(brand_name):
+        raise HTTPException(status_code=422, detail="brand_name solo admite letras, números, espacios, puntos y guiones")
+    if not _BLUEPRINT_DOMAIN_RE.match(domain):
+        raise HTTPException(status_code=422, detail="domain solo admite letras, números, puntos y guiones")
+
+    return f"""version: 1
 metadata:
   name: Aprovisionamiento de Marca - {brand_name}
 entries:
@@ -1213,7 +1217,7 @@ entries:
       domain: {domain}
       is_default: false
       branding_title: {brand_name} ID
-      
+
   # 2. Crear Grupo Padre de la Marca (para usuarios de este dominio)
   - identifiers:
       name: {brand_name}-users
@@ -1237,6 +1241,19 @@ entries:
       name: {brand_name}-plane
       parent: !Find [authentik_core.group, [name, {brand_name}-users]]
 """
+
+
+@router.get("/blueprint/download", dependencies=[Depends(verify_admin_key)])
+async def download_brand_blueprint(
+    brand_name: str = Query(..., description="Nombre de la marca/brand"),
+    domain: str = Query(..., description="Dominio de la marca")
+):
+    """
+    Genera y descarga un Blueprint de Authentik para inicializar una nueva marca,
+    aprovisionar sus dominios y la estructura de grupos de usuarios inicial.
+    """
+    brand_slug = brand_name.lower().replace(" ", "-").strip()
+    yaml_content = _build_brand_blueprint_yaml(brand_name, domain)
     from fastapi.responses import Response
     return Response(
         content=yaml_content,

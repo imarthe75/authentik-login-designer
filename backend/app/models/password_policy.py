@@ -52,8 +52,8 @@ class PasswordPolicy(Base):
     # en Authentik (threshold = -lockout_failed_attempts; cada login_failed
     # resta 1 punto, ver authentik/policies/reputation/signals.py).
     lockout_failed_attempts: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
-    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )

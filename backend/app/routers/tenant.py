@@ -360,7 +360,17 @@ async def delete_tenant_application(link_id: str, db: AsyncSession = Depends(get
     except ValueError:
         raise HTTPException(status_code=400, detail="link_id inválido")
 
-    res = await db.execute(select(TenantApplication).where(TenantApplication.id == link_uuid))
+    tenant = await _get_default_tenant(db)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Default tenant not configured.")
+
+    # tenant_applications es una tabla compartida con authentik-login-manager
+    # (multi-tenant) — sin este filtro, la ADMIN_API_KEY de Designer podría
+    # borrar el enlace de aplicación de OTRO tenant (IDOR).
+    res = await db.execute(select(TenantApplication).where(
+        TenantApplication.id == link_uuid,
+        TenantApplication.tenant_id == tenant.id,
+    ))
     link = res.scalar_one_or_none()
     if not link:
         raise HTTPException(status_code=404, detail="Enlace no encontrado")
