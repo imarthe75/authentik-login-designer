@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Boolean, DateTime, CheckConstraint, UniqueConstraint, ForeignKey, func
+from sqlalchemy import String, Boolean, DateTime, CheckConstraint, UniqueConstraint, ForeignKey, func, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
@@ -25,8 +25,13 @@ class TenantApplication(Base):
         ),
     )
 
+    # server_default=uuidv7() (no default= de Python): postgres/rules.md #2
+    # exige uuidv7, no uuid4. server_default (no solo el trigger audit_biu)
+    # es necesario para que SQLAlchemy sepa que debe pedir el valor generado
+    # de vuelta via RETURNING — sin esto, el ORM intenta registrar el objeto
+    # con id NULL y lanza FlushError antes de que el trigger llegue a correr.
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+        UUID(as_uuid=True), primary_key=True, server_default=text("uuidv7()")
     )
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
